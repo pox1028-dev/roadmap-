@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & ReactDOM (開發版，方便測試) -->
+  <!-- React & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <!-- Babel 編譯 JSX -->
@@ -16,70 +16,146 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    // 這裡直接放我之前給你的 App 程式碼
-    // 為了單檔可跑，我會把 export default function App() 改成 function App()
-    // 並在最後用 ReactDOM.render 掛載
-
     const B = "B", P = "P", T = "T";
-    const GRID_ROWS_BIG = 6, GRID_COLS = 80, BEAD_COLS = 10;
-
-    // （⚠️ 因字數限制，這裡我先放簡化版：只做按鈕 + 大路 + 珠盤路）
-    // 如果你需要完整「大眼仔/小路/蟑螂路」也加進來，我可以再幫你擴充
+    const ROWS = 6, COLS = 60, BEAD_COLS = 10;
 
     function useLocalState(key, init) {
       const [state, setState] = React.useState(() => {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : init;
-        } catch { return init; }
+        try { return JSON.parse(localStorage.getItem(key)) || init; }
+        catch { return init; }
       });
       React.useEffect(() => {
-        try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
-      }, [key, state]);
+        localStorage.setItem(key, JSON.stringify(state));
+      }, [state]);
       return [state, setState];
     }
 
-    function buildBead(seq) { return seq; }
-
-    function BeadPlate({ seq }) {
-      const cells = Array(BEAD_COLS * GRID_ROWS_BIG).fill(null);
-      seq.forEach((x, i) => { if (i < cells.length) cells[i] = x; });
-      return (
-        <div className="inline-grid" style={{ gridTemplateColumns: `repeat(${BEAD_COLS}, 18px)` }}>
-          {cells.map((x, i) => (
-            <div key={i} className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">
-              {x && (x===T ?
-                <div className="w-4 h-4 border-2 border-emerald-400 rounded-full"/> :
-                <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`}/>
-              )}
-            </div>
-          ))}
-        </div>
-      );
+    // ---------- 大路 ----------
+    function buildBigRoad(seq) {
+      const nodes = [];
+      let last = null;
+      const grid = {};
+      const key = (c,r)=>`${c}:${r}`;
+      for (const x of seq) {
+        if (x===T) { if(last) last.ties=(last.ties||0)+1; continue; }
+        if (!last) {
+          last={c:0,r:0,who:x}; nodes.push(last); grid[key(0,0)]=last; continue;
+        }
+        if (x!==last.who) {
+          last={c:last.c+1,r:0,who:x}; nodes.push(last); grid[key(last.c,0)]=last;
+        } else {
+          let c=last.c,r=last.r+1;
+          if(r>=ROWS || grid[key(c,r)]) { c=c+1; r=0; }
+          last={c,r,who:x}; nodes.push(last); grid[key(c,r)]=last;
+        }
+      }
+      return nodes;
+    }
+    function bigRoadColumns(nodes) {
+      const map=new Map();
+      for(const n of nodes){ if(!map.has(n.c)) map.set(n.c,[]); map.get(n.c).push(n);}
+      for(const arr of map.values()) arr.sort((a,b)=>a.r-b.r);
+      const max=Math.max(0,...map.keys());
+      return Array.from({length:max+1},(_,i)=>map.get(i)||[]);
     }
 
-    function App() {
-      const [state, setState] = useLocalState("bacc_demo", { seq: [] });
-      const add = (x) => setState(s => ({ ...s, seq: [...s.seq, x] }));
-      const undo = () => setState(s => ({ ...s, seq: s.seq.slice(0, -1) }));
-      const reset = () => setState({ seq: [] });
+    // ---------- 下三路 ----------
+    function deriveRoads(nodes){
+      const cols=bigRoadColumns(nodes).map(c=>({len:c.length}));
+      const bigEye=[], small=[], cockroach=[];
+      for(const n of nodes){
+        const {c,r}=n;
+        if(r>0){
+          if(c>=1) bigEye.push({color:(cols[c-1]?.len||0)>r? "R":"B"});
+          if(c>=2) small.push({color:(cols[c-2]?.len||0)>r? "R":"B"});
+          if(c>=3) cockroach.push({color:(cols[c-3]?.len||0)>r? "R":"B"});
+        }else{
+          if(c>=2) bigEye.push({color:(cols[c-1]?.len||0)===(cols[c-2]?.len||0)? "R":"B"});
+          if(c>=3) small.push({color:(cols[c-1]?.len||0)===(cols[c-3]?.len||0)? "R":"B"});
+          if(c>=4) cockroach.push({color:(cols[c-1]?.len||0)===(cols[c-4]?.len||0)? "R":"B"});
+        }
+      }
+      return {bigEye,small,cockroach};
+    }
 
-      return (
-        <div className="p-4 space-y-4">
-          <h1 className="text-xl font-bold">百家樂路單 · Demo</h1>
-          <div className="flex gap-2">
-            <button onClick={()=>add(B)} className="px-4 py-2 bg-red-600 rounded text-white">莊 (B)</button>
-            <button onClick={()=>add(P)} className="px-4 py-2 bg-blue-600 rounded text-white">閒 (P)</button>
-            <button onClick={()=>add(T)} className="px-4 py-2 bg-green-600 rounded text-white">和 (T)</button>
-            <button onClick={undo} className="px-3 py-2 bg-slate-700 rounded">悔步</button>
-            <button onClick={reset} className="px-3 py-2 bg-slate-700 rounded">重置</button>
-          </div>
-          <div>
-            <h2 className="mb-2">珠盤路 (Bead Plate)</h2>
-            <BeadPlate seq={state.seq} />
-          </div>
+    // ---------- 珠盤路 ----------
+    function buildBead(seq){return seq;}
+
+    // ---------- UI ----------
+    function Cell({children}){return <div className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">{children}</div>;}
+
+    function BeadPlate({seq}){
+      const cells=Array(BEAD_COLS*ROWS).fill(null);
+      seq.forEach((x,i)=>{if(i<cells.length)cells[i]=x;});
+      return <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
+        {cells.map((x,i)=><Cell key={i}>{x&&(x===T?<div className="w-4 h-4 border-2 border-green-400 rounded-full"/>:<div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`}/>)}</Cell>)}
+      </div>;
+    }
+
+    function BigRoad({nodes}){
+      const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+      for(const n of nodes){if(n.c<COLS&&n.r<ROWS)grid[n.r][n.c]=n;}
+      return <div className="overflow-x-auto"><div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
+        {grid.map((row,ri)=><React.Fragment key={ri}>{row.map((n,ci)=><Cell key={ci}>{n&&<div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"}`}>{n.ties?<span className="text-[10px] text-white">{n.ties}</span>:null}</div>}</Cell>)}</React.Fragment>)}
+      </div></div>;
+    }
+
+    function DerivedRoad({dots,symbol}){
+      const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+      let last=null;
+      for(const d of dots){
+        if(!last){grid[0][0]=d; last={c:0,r:0}; continue;}
+        let c=last.c,r=last.r+1;
+        if(r>=ROWS||grid[r][c]){c=c+1;r=0;}
+        grid[r][c]=d; last={c,r};
+      }
+      return <div className="overflow-x-auto"><div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
+        {grid.map((row,ri)=><React.Fragment key={ri}>{row.map((d,ci)=><Cell key={ci}>{d&&(symbol==="/"?
+          <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} text-[14px]`}>/</span>:
+          <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} ${symbol==="●"?"text-[16px]":"text-[14px]"}`}>{symbol}</span>)}</Cell>)}</React.Fragment>)}
+      </div></div>;
+    }
+
+    function App(){
+      const [state,setState]=useLocalState("bacc_index",{seq:[]});
+      const add=x=>setState(s=>({...s,seq:[...s.seq,x]}));
+      const undo=()=>setState(s=>({...s,seq:s.seq.slice(0,-1)}));
+      const reset=()=>setState({seq:[]});
+      const nodes=buildBigRoad(state.seq);
+      const {bigEye,small,cockroach}=deriveRoads(nodes);
+      const bead=buildBead(state.seq);
+
+      return <div className="p-4 space-y-4">
+        <h1 className="text-xl font-bold">百家樂路單 Roadmap</h1>
+        <div className="flex gap-2">
+          <button onClick={()=>add(B)} className="px-4 py-2 bg-red-600 rounded text-white">莊</button>
+          <button onClick={()=>add(P)} className="px-4 py-2 bg-blue-600 rounded text-white">閒</button>
+          <button onClick={()=>add(T)} className="px-4 py-2 bg-green-600 rounded text-white">和</button>
+          <button onClick={undo} className="px-3 py-2 bg-slate-700 rounded">悔步</button>
+          <button onClick={reset} className="px-3 py-2 bg-slate-700 rounded">重置</button>
         </div>
-      );
+
+        <div>
+          <h2>珠盤路</h2>
+          <BeadPlate seq={bead}/>
+        </div>
+        <div>
+          <h2>大路</h2>
+          <BigRoad nodes={nodes}/>
+        </div>
+        <div>
+          <h2>大眼仔</h2>
+          <DerivedRoad dots={bigEye} symbol="●"/>
+        </div>
+        <div>
+          <h2>小路</h2>
+          <DerivedRoad dots={small} symbol="○"/>
+        </div>
+        <div>
+          <h2>蟑螂路</h2>
+          <DerivedRoad dots={cockroach} symbol="/"/>
+        </div>
+      </div>;
     }
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
