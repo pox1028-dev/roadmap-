@@ -4,19 +4,15 @@
   <meta charset="UTF-8" />
   <title>百家樂路單 Roadmap</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React 18 + ReactDOM 18 -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel (讓瀏覽器直接跑 JSX) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100">
   <div id="root"></div>
 
   <script type="text/babel">
-    // ---------------- 基本設定 ----------------
     const B="B", P="P", T="T";
     const ROWS=6, COLS=80, BEAD_COLS=10;
 
@@ -26,7 +22,7 @@
       return [s,setS];
     };
 
-    // ---------------- 大路演算法 ----------------
+    // ---------- 大路 ----------
     function buildBigRoad(seq){
       const nodes=[]; let last=null; const grid={};
       const k=(c,r)=>`${c}:${r}`;
@@ -42,6 +38,7 @@
       }
       return nodes;
     }
+
     function bigRoadColumns(nodes){
       const map=new Map();
       for(const n of nodes){ if(!map.has(n.c)) map.set(n.c,[]); map.get(n.c).push(n); }
@@ -50,34 +47,38 @@
       return Array.from({length:max+1},(_,i)=>map.get(i)||[]);
     }
 
-    // ---------------- 下三路（依你圖的規則） ----------------
-    // 起算：大眼仔從第2欄、小路第3欄、蟑螂路第4欄。
-    // 同欄往下(r>0)：看前N欄同一列是否有子 → 有=紅 沒=藍
-    // 新開一欄(r==0)：比兩欄高度是否相等 → 相等=紅 不等=藍（N 依各路不同）
+    // ---------- 下三路（第一版規律判斷邏輯） ----------
+    /*
+     * 大眼仔起算點：第2欄
+     * 小路起算點：第3欄
+     * 蟑螂路起算點：第4欄
+     * r>0 (同欄往下)：比較前N欄是否有子
+     * r==0 (新開欄)：比較兩欄高度是否相等
+     */
     function deriveRoads(nodes){
       const cols=bigRoadColumns(nodes).map(c=>({len:c.length}));
-      const BE=[], SL=[], CK=[];
+      const bigEye=[], small=[], cockroach=[];
       for(const n of nodes){
         const {c,r}=n;
         if(r>0){
-          if(c>=1) BE.push({color:(cols[c-1]?.len||0)>r? "R":"B"});
-          if(c>=2) SL.push({color:(cols[c-2]?.len||0)>r? "R":"B"});
-          if(c>=3) CK.push({color:(cols[c-3]?.len||0)>r? "R":"B"});
+          if(c>=1) bigEye.push({color:(cols[c-1]?.len||0)>r? "R":"B"});
+          if(c>=2) small.push({color:(cols[c-2]?.len||0)>r? "R":"B"});
+          if(c>=3) cockroach.push({color:(cols[c-3]?.len||0)>r? "R":"B"});
         }else{
-          if(c>=2) BE.push({color:(cols[c-1]?.len||0)===(cols[c-2]?.len||0)? "R":"B"});
-          if(c>=3) SL.push({color:(cols[c-1]?.len||0)===(cols[c-3]?.len||0)? "R":"B"});
-          if(c>=4) CK.push({color:(cols[c-1]?.len||0)===(cols[c-4]?.len||0)? "R":"B"});
+          if(c>=2) bigEye.push({color:(cols[c-1]?.len||0)===(cols[c-2]?.len||0)? "R":"B"});
+          if(c>=3) small.push({color:(cols[c-1]?.len||0)===(cols[c-3]?.len||0)? "R":"B"});
+          if(c>=4) cockroach.push({color:(cols[c-1]?.len||0)===(cols[c-4]?.len||0)? "R":"B"});
         }
       }
-      return {bigEye:BE, small:SL, cockroach:CK};
+      return {bigEye,small,cockroach};
     }
 
-    // ---------------- 珠盤路 ----------------
-      function BeadPlate({seq}){
+    // ---------- 珠盤路 (上→下、左→右) ----------
+    function BeadPlate({seq}){
       const grid=Array.from({length:ROWS},()=>Array(BEAD_COLS).fill(null));
       seq.forEach((x,i)=>{
-        const col=Math.floor(i/ROWS);  // 先填滿同一欄
-        const row=i%ROWS;               // 欄內從上到下
+        const col=Math.floor(i/ROWS);
+        const row=i%ROWS;
         if(col<BEAD_COLS) grid[row][col]=x;
       });
       return (
@@ -98,69 +99,62 @@
       );
     }
 
-    // ---------------- UI 小元件 ----------------
-    const Section=({title,children})=>
-      <div className="bg-slate-900 rounded-2xl p-4 shadow">
-        <h2 className="text-slate-100 font-semibold mb-2">{title}</h2>
-        {children}
-      </div>;
-
-    const Cell=({children})=>
-      <div className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">{children}</div>;
-
-    function BeadPlate({seq}){
-      const cells=Array(BEAD_COLS*ROWS).fill(null);
-      seq.forEach((x,i)=>{ if(i<cells.length) cells[i]=x; });
-      return <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
-        {cells.map((x,i)=><Cell key={i}>
-          {x && (x===T
-            ? <div className="w-4 h-4 border-2 border-emerald-400 rounded-full" title="T"/>
-            : <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`} title={x}/>
-          )}
-        </Cell>)}
-      </div>;
-    }
-
+    // ---------- 大路顯示 ----------
     function BigRoad({nodes}){
       const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
       for(const n of nodes){ if(n.c<COLS && n.r<ROWS) grid[n.r][n.c]=n; }
-      return <div className="overflow-x-auto">
-        <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
-          {grid.map((row,ri)=><React.Fragment key={ri}>
-            {row.map((n,ci)=><Cell key={ci}>
-              {n && <div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"} relative`} title={`${n.who}`}>
-                {n.ties ? <span className="absolute text-[10px] text-white top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{n.ties}</span> : null}
-              </div>}
-            </Cell>)}
-          </React.Fragment>)}
+      return (
+        <div className="overflow-x-auto">
+          <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
+            {grid.map((row,ri)=>(
+              <React.Fragment key={ri}>
+                {row.map((n,ci)=>(
+                  <div key={ci} className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">
+                    {n && (
+                      <div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"} relative`} title={n.who}>
+                        {n.ties ? <span className="absolute text-[10px] text-white">{n.ties}</span> : null}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
-      </div>;
+      );
     }
 
+    // ---------- 下三路顯示（左→右、上→下） ----------
     function DerivedRoad({dots,symbol}){
       const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
-      let last=null;
+      let idx=0;
       for(const d of dots){
-        if(!last){ grid[0][0]=d; last={c:0,r:0}; continue; }
-        let c=last.c, r=last.r+1;
-        if(r>=ROWS || grid[r][c]){ c=c+1; r=0; }
-        grid[r][c]=d; last={c,r};
+        const r=Math.floor(idx/COLS);
+        const c=idx%COLS;
+        if(r<ROWS) grid[r][c]=d;
+        idx++;
       }
-      return <div className="overflow-x-auto">
-        <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
-          {grid.map((row,ri)=><React.Fragment key={ri}>
-            {row.map((d,ci)=><Cell key={ci}>
-              {d && (symbol==="/"
-                ? <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} text-[14px]`}>/</span>
-                : <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} ${symbol==="●"?"text-[16px]":"text-[14px]"}`}>{symbol}</span>
-              )}
-            </Cell>)}
-          </React.Fragment>)}
+      return (
+        <div className="overflow-x-auto">
+          <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
+            {grid.map((row,ri)=>(
+              <React.Fragment key={ri}>
+                {row.map((d,ci)=>(
+                  <div key={ci} className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">
+                    {d && (symbol==="/"
+                      ? <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} text-[14px]`}>/</span>
+                      : <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} ${symbol==="●"?"text-[16px]":"text-[14px]"}`}>{symbol}</span>
+                    )}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
-      </div>;
+      );
     }
 
-    // ---------------- App ----------------
+    // ---------- 主程式 ----------
     function App(){
       const [st,setSt]=useLocalState("bacc_full",{seq:[]});
       const add=x=>setSt(s=>({...s,seq:[...s.seq,x]}));
@@ -169,12 +163,10 @@
 
       const nodes=buildBigRoad(st.seq);
       const {bigEye,small,cockroach}=deriveRoads(nodes);
-      const bead=buildBead(st.seq);
 
       return (
         <div className="max-w-[1200px] mx-auto p-4 space-y-4">
           <h1 className="text-xl font-bold">百家樂路單 · 完整版</h1>
-
           <div className="flex flex-wrap gap-2">
             <button onClick={()=>add(B)} className="px-4 py-2 rounded-2xl bg-red-600 text-white">莊 (B)</button>
             <button onClick={()=>add(P)} className="px-4 py-2 rounded-2xl bg-blue-600 text-white">閒 (P)</button>
@@ -184,16 +176,14 @@
           </div>
 
           <div className="grid lg:grid-cols-5 md:grid-cols-2 gap-4">
-            <Section title="珠盤路 (Bead Plate)"><BeadPlate seq={bead}/></Section>
-            <Section title="大路 (Big Road)"><BigRoad nodes={nodes}/></Section>
-            <Section title="大眼仔 (Big Eye Boy)"><DerivedRoad dots={bigEye} symbol="●"/></Section>
-            <Section title="小路 (Small Road)"><DerivedRoad dots={small} symbol="○"/></Section>
-            <Section title="蟑螂路 (Cockroach Pig)"><DerivedRoad dots={cockroach} symbol="/"/></Section>
+            <div className="bg-slate-900 rounded-2xl p-4 shadow"><h2 className="mb-2 font-semibold">珠盤路</h2><BeadPlate seq={st.seq}/></div>
+            <div className="bg-slate-900 rounded-2xl p-4 shadow"><h2 className="mb-2 font-semibold">大路</h2><BigRoad nodes={nodes}/></div>
+            <div className="bg-slate-900 rounded-2xl p-4 shadow"><h2 className="mb-2 font-semibold">大眼仔</h2><DerivedRoad dots={bigEye} symbol="●"/></div>
+            <div className="bg-slate-900 rounded-2xl p-4 shadow"><h2 className="mb-2 font-semibold">小路</h2><DerivedRoad dots={small} symbol="○"/></div>
+            <div className="bg-slate-900 rounded-2xl p-4 shadow"><h2 className="mb-2 font-semibold">蟑螂路</h2><DerivedRoad dots={cockroach} symbol="/"/></div>
           </div>
 
-          <p className="text-xs text-slate-400">
-            下三路紅/藍代表規律/不規律（與莊/閒顏色無關）。和局不推進，只在當前大路格標記次數。
-          </p>
+          <p className="text-xs text-slate-400">說明：下三路紅/藍代表規律/不規律（與莊/閒無關）。和局不推進，只在當前大路格標記次數。</p>
         </div>
       );
     }
