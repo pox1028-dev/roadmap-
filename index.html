@@ -2,180 +2,300 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>百家樂路單 Roadmap</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>百家樂模擬器｜珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路</title>
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 + ReactDOM 18 -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel (讓瀏覽器直接跑 JSX) -->
+  <!-- Babel (run JSX in browser) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8 }
+    body { background:var(--bg); color:#e5e7eb }
+    .cell { width:18px; height:18px; border:1px solid #1f2937; display:flex; align-items:center; justify-content:center; }
+    .dot { width:14px; height:14px; border-radius:9999px; box-sizing:border-box; }
+    .b { background:#ef4444; border:2px solid #ef4444 } /* Banker red */
+    .p { background:#60a5fa; border:2px solid #60a5fa } /* Player blue */
+    .t { background:#10b981; border:2px dashed #10b981 } /* Tie green dashed */
+    .r { background:#ef4444; border:2px solid #ef4444 } /* derived red */
+    .u { background:#60a5fa; border:2px solid #60a5fa } /* derived blue */
+    .board { background:var(--card); border-radius:14px; padding:12px }
+    .title { color:#cbd5e1 }
+    .btn { padding:.5rem .75rem; border-radius:.6rem; background:#1f2937 }
+    .btn:hover { background:#374151 }
+    .kbd { padding:.15rem .4rem; border:1px solid #475569; border-bottom-width:2px; border-radius:6px; font-size:.8rem; color:#cbd5e1 }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
-  <div id="root"></div>
+<body>
+<div id="root"></div>
 
-  <script type="text/babel">
-    // ---------------- 基本設定 ----------------
-    const B="B", P="P", T="T";
-    const ROWS=6, COLS=80, BEAD_COLS=10;
+<script type="text/babel">
+const {useState, useMemo} = React;
 
-    const useLocalState=(key,init)=>{
-      const [s,setS]=React.useState(()=>{try{return JSON.parse(localStorage.getItem(key))||init;}catch{return init;}});
-      React.useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(s));}catch{}},[s]);
-      return [s,setS];
-    };
+// ====== Helpers ======
+const B='B', P='P', T='T';
 
-    // ---------------- 大路演算法 ----------------
-    function buildBigRoad(seq){
-      const nodes=[]; let last=null; const grid={};
-      const k=(c,r)=>`${c}:${r}`;
-      for(const x of seq){
-        if(x===T){ if(last) last.ties=(last.ties||0)+1; continue; }
-        if(!last){ last={c:0,r:0,who:x}; nodes.push(last); grid[k(0,0)]=last; continue; }
-        if(x!==last.who){ last={c:last.c+1,r:0,who:x}; nodes.push(last); grid[k(last.c,0)]=last; }
-        else{
-          let c=last.c, r=last.r+1;
-          if(r>=ROWS || grid[k(c,r)]){ c=c+1; r=0; }
-          last={c,r,who:x}; nodes.push(last); grid[k(c,r)]=last;
-        }
+// Make empty grid (rows x cols)
+function makeGrid(rows, cols){
+  return Array.from({length:rows},()=>Array(cols).fill(null));
+}
+
+// Push into bead plate (珠盤路): top->bottom, left->right
+function beadFill(results, rows=6, cols=30){
+  const grid = makeGrid(rows, cols);
+  let idx=0;
+  for(const r of results){
+    const c = Math.floor(idx/rows); // left to right
+    const row = idx%rows;           // top to bottom
+    if(c<cols) grid[row][c]=r;      // ignore overflow
+    idx++;
+  }
+  return grid;
+}
+
+// Build Big Road columns from sequence WITHOUT ties
+// Rule: same result continues down; change starts a new column.
+// If going down hits bottom OR next cell occupied, wrap to new column.
+function buildBigRoad(sequenceNoTies, maxRows=6){
+  const cols=[]; // array of columns, each column is array of entries top->bottom
+  let last=null;
+  for(const r of sequenceNoTies){
+    if(!last){ // very first
+      cols[0]=cols[0]||[]; cols[0][0]=r; last=r; continue;
+    }
+    let c = cols.length-1;
+    let col = cols[c];
+    const topSame = (r===last);
+    if(topSame){
+      // try to go down one row
+      const nextRow = (col?col.length:0);
+      // If bottom reached OR the cell below would cause a 'kink' (occupied in previous column when same row already taken)
+      if(nextRow>=maxRows || (c>0 && (cols[c-1]||[])[nextRow-1]===undefined && (cols[c-1]||[]).length < nextRow)){
+        // start new column if can't go further down (standard wrap)
+        cols.push([r]);
+      } else {
+        col.push(r);
       }
-      return nodes;
+    } else {
+      // color changed -> start a new column
+      cols.push([r]);
     }
-    function bigRoadColumns(nodes){
-      const map=new Map();
-      for(const n of nodes){ if(!map.has(n.c)) map.set(n.c,[]); map.get(n.c).push(n); }
-      for(const v of map.values()) v.sort((a,b)=>a.r-b.r);
-      const max=Math.max(0,...map.keys());
-      return Array.from({length:max+1},(_,i)=>map.get(i)||[]);
-    }
+    last=r;
+  }
+  // Normalize undefined holes to null
+  for(let i=0;i<cols.length;i++) cols[i]=cols[i]||[];
+  return cols;
+}
 
-    // ---------------- 下三路（依你圖的規則） ----------------
-    // 起算：大眼仔從第2欄、小路第3欄、蟑螂路第4欄。
-    // 同欄往下(r>0)：看前N欄同一列是否有子 → 有=紅 沒=藍
-    // 新開一欄(r==0)：比兩欄高度是否相等 → 相等=紅 不等=藍（N 依各路不同）
-    function deriveRoads(nodes){
-      const cols=bigRoadColumns(nodes).map(c=>({len:c.length}));
-      const BE=[], SL=[], CK=[];
-      for(const n of nodes){
-        const {c,r}=n;
-        if(r>0){
-          if(c>=1) BE.push({color:(cols[c-1]?.len||0)>r? "R":"B"});
-          if(c>=2) SL.push({color:(cols[c-2]?.len||0)>r? "R":"B"});
-          if(c>=3) CK.push({color:(cols[c-3]?.len||0)>r? "R":"B"});
-        }else{
-          if(c>=2) BE.push({color:(cols[c-1]?.len||0)===(cols[c-2]?.len||0)? "R":"B"});
-          if(c>=3) SL.push({color:(cols[c-1]?.len||0)===(cols[c-3]?.len||0)? "R":"B"});
-          if(c>=4) CK.push({color:(cols[c-1]?.len||0)===(cols[c-4]?.len||0)? "R":"B"});
-        }
+// Convert Big Road columns to a paintable grid (left->right columns, top->bottom rows)
+function bigRoadGrid(cols, rows=6, maxCols=80){
+  const grid = makeGrid(rows, maxCols);
+  for(let c=0;c<cols.length && c<maxCols; c++){
+    const col = cols[c];
+    for(let r=0;r<Math.min(col.length, rows); r++){
+      grid[r][c]=col[r];
+    }
+  }
+  return grid;
+}
+
+// === Derived roads (大眼仔/小路/蟑螂) ===
+// Common casino rule set (look-left method):
+//   For a Big Road placement at (c, r):
+//   * When r>1 (continuing a streak), check if the reference column at the same row exists.
+//       - If exists -> RED (一致) ; else BLUE (不一致)
+//   * When r==1 (new column), compare the lengths of the previous column and the reference column.
+//       - Equal -> RED ; not equal -> BLUE
+// Offsets:
+//   * Big Eye Boy:   ref = c-2  (offset=1)   starts once there is a column 2
+//   * Small Road:    ref = c-3  (offset=2)   starts once there is a column 3
+//   * Cockroach Pig: ref = c-4  (offset=3)   starts once there is a column 4
+// Return 'R' or 'U' (red/blue) sequence aligned to usable Big Road entries.
+function buildDerivedFromBig(bigCols, offset){
+  const marks=[]; // each item is {color:'R'|'U'}
+  for(let c=0;c<bigCols.length; c++){
+    const col = bigCols[c];
+    for(let r=0;r<col.length; r++){
+      // We need at least (offset+1) columns to the left to evaluate
+      if(c <= offset) continue;
+      let color;
+      if(r>0){
+        // continuing down -> check existence at same row in column (c-1-offset)? NO, casino rule compares (c-1) vs (c-1-offset) by presence at this row.
+        const leftHas = (bigCols[c-1]||[])[r] !== undefined;      // same row exists in immediate left column
+        const refHas  = (bigCols[c-1-offset]||[])[r] !== undefined; // same row exists in reference column further left
+        // Big Eye/Small/Cockroach only look at ONE of them depending on tradition; most casinos only check the reference column presence, but having both keeps symmetry.
+        // We follow the widely used rule: color = (leftHas === refHas) ? 'R' : 'U'.
+        color = (leftHas === refHas) ? 'R' : 'U';
+      } else {
+        const lenPrev = (bigCols[c-1]||[]).length;
+        const lenRef  = (bigCols[c-1-offset]||[]).length;
+        color = (lenPrev === lenRef) ? 'R' : 'U';
       }
-      return {bigEye:BE, small:SL, cockroach:CK};
+      marks.push(color);
     }
+  }
+  return marks;
+}
 
-    // ---------------- 珠盤路 ----------------
-    const buildBead = (seq)=>seq;
-
-    // ---------------- UI 小元件 ----------------
-    const Section=({title,children})=>
-      <div className="bg-slate-900 rounded-2xl p-4 shadow">
-        <h2 className="text-slate-100 font-semibold mb-2">{title}</h2>
-        {children}
-      </div>;
-
-    const Cell=({children})=>
-      <div className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">{children}</div>;
-
-    function BeadPlate({seq}){
-      const cells=Array(BEAD_COLS*ROWS).fill(null);
-      seq.forEach((x,i)=>{ if(i<cells.length) cells[i]=x; });
-      return <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
-        {cells.map((x,i)=><Cell key={i}>
-          {x && (x===T
-            ? <div className="w-4 h-4 border-2 border-emerald-400 rounded-full" title="T"/>
-            : <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`} title={x}/>
-          )}
-        </Cell>)}
-      </div>;
+// Render a derived road as grid with same stacking rule as Big Road but using R/U colors
+function buildDerivedGrid(marks, rows=6, maxCols=80){
+  // Convert R/U sequence into columns using same rule as Big Road (streaks of same color keep going down)
+  const cols=[]; let last=null;
+  for(const m of marks){
+    if(!last){ cols[0]=[m]; last=m; continue; }
+    let c = cols.length-1; const col = cols[c];
+    if(m===last){
+      const nextRow = col.length;
+      if(nextRow>=rows){ cols.push([m]); }
+      else { col.push(m); }
+    } else {
+      cols.push([m]);
     }
+    last=m;
+  }
+  // into grid
+  const grid = makeGrid(rows, Math.max(cols.length, 1));
+  for(let c=0;c<cols.length;c++){
+    const col=cols[c];
+    for(let r=0;r<Math.min(rows,col.length);r++) grid[r][c]=col[r];
+  }
+  return grid;
+}
 
-    function BigRoad({nodes}){
-      const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
-      for(const n of nodes){ if(n.c<COLS && n.r<ROWS) grid[n.r][n.c]=n; }
-      return <div className="overflow-x-auto">
-        <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
-          {grid.map((row,ri)=><React.Fragment key={ri}>
-            {row.map((n,ci)=><Cell key={ci}>
-              {n && <div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"} relative`} title={`${n.who}`}>
-                {n.ties ? <span className="absolute text-[10px] text-white top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{n.ties}</span> : null}
-              </div>}
-            </Cell>)}
-          </React.Fragment>)}
-        </div>
-      </div>;
-    }
-
-    function DerivedRoad({dots,symbol}){
-      const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
-      let last=null;
-      for(const d of dots){
-        if(!last){ grid[0][0]=d; last={c:0,r:0}; continue; }
-        let c=last.c, r=last.r+1;
-        if(r>=ROWS || grid[r][c]){ c=c+1; r=0; }
-        grid[r][c]=d; last={c,r};
-      }
-      return <div className="overflow-x-auto">
-        <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
-          {grid.map((row,ri)=><React.Fragment key={ri}>
-            {row.map((d,ci)=><Cell key={ci}>
-              {d && (symbol==="/"
-                ? <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} text-[14px]`}>/</span>
-                : <span className={`${d.color==="R"?"text-red-400":"text-blue-400"} ${symbol==="●"?"text-[16px]":"text-[14px]"}`}>{symbol}</span>
+// === UI Components ===
+function Grid({grid, mode}){
+  // mode: 'bead' uses B/P/T colors; 'big' uses B/P; 'derived' uses R/U
+  return (
+    <div className="inline-block">
+      {grid.map((row,ri)=>(
+        <div key={ri} className="flex">
+          {row.map((cell,ci)=>(
+            <div key={ci} className="cell">
+              {cell && (
+                <div className={`dot ${
+                  mode==='bead' ? (cell===B? 'b' : cell===P? 'p' : 't') :
+                  mode==='big'  ? (cell===B? 'b' : 'p') :
+                                   (cell==='R'? 'r' : 'u')
+                }`}></div>
               )}
-            </Cell>)}
-          </React.Fragment>)}
+            </div>
+          ))}
         </div>
-      </div>;
-    }
+      ))}
+    </div>
+  );
+}
 
-    // ---------------- App ----------------
-    function App(){
-      const [st,setSt]=useLocalState("bacc_full",{seq:[]});
-      const add=x=>setSt(s=>({...s,seq:[...s.seq,x]}));
-      const undo=()=>setSt(s=>({...s,seq:s.seq.slice(0,-1)}));
-      const reset=()=>setSt({seq:[]});
+function App(){
+  const [results, setResults] = useState([]); // sequence including ties
 
-      const nodes=buildBigRoad(st.seq);
-      const {bigEye,small,cockroach}=deriveRoads(nodes);
-      const bead=buildBead(st.seq);
+  const counts = useMemo(()=>({
+    B: results.filter(x=>x===B).length,
+    P: results.filter(x=>x===P).length,
+    T: results.filter(x=>x===T).length,
+  }),[results]);
 
-      return (
-        <div className="max-w-[1200px] mx-auto p-4 space-y-4">
-          <h1 className="text-xl font-bold">百家樂路單 · 完整版</h1>
+  const seqNoTies = useMemo(()=>results.filter(x=>x!==T),[results]);
 
-          <div className="flex flex-wrap gap-2">
-            <button onClick={()=>add(B)} className="px-4 py-2 rounded-2xl bg-red-600 text-white">莊 (B)</button>
-            <button onClick={()=>add(P)} className="px-4 py-2 rounded-2xl bg-blue-600 text-white">閒 (P)</button>
-            <button onClick={()=>add(T)} className="px-4 py-2 rounded-2xl bg-emerald-600 text-white">和 (T)</button>
-            <button onClick={undo} className="px-3 py-2 rounded-2xl bg-slate-700">悔步</button>
-            <button onClick={reset} className="px-3 py-2 rounded-2xl bg-slate-700">重置</button>
-          </div>
+  const bead = useMemo(()=>beadFill(results, 6, 30),[results]);
 
-          <div className="grid lg:grid-cols-5 md:grid-cols-2 gap-4">
-            <Section title="珠盤路 (Bead Plate)"><BeadPlate seq={bead}/></Section>
-            <Section title="大路 (Big Road)"><BigRoad nodes={nodes}/></Section>
-            <Section title="大眼仔 (Big Eye Boy)"><DerivedRoad dots={bigEye} symbol="●"/></Section>
-            <Section title="小路 (Small Road)"><DerivedRoad dots={small} symbol="○"/></Section>
-            <Section title="蟑螂路 (Cockroach Pig)"><DerivedRoad dots={cockroach} symbol="/"/></Section>
-          </div>
+  const bigCols = useMemo(()=>buildBigRoad(seqNoTies, 6),[seqNoTies]);
+  const bigGrid = useMemo(()=>bigRoadGrid(bigCols, 6, 80),[bigCols]);
 
-          <p className="text-xs text-slate-400">
-            下三路紅/藍代表規律/不規律（與莊/閒顏色無關）。和局不推進，只在當前大路格標記次數。
-          </p>
+  const bigEyeSeq = useMemo(()=>buildDerivedFromBig(bigCols, 1), [bigCols]);
+  const smallSeq  = useMemo(()=>buildDerivedFromBig(bigCols, 2), [bigCols]);
+  const roachSeq  = useMemo(()=>buildDerivedFromBig(bigCols, 3), [bigCols]);
+
+  const bigEyeGrid = useMemo(()=>buildDerivedGrid(bigEyeSeq,6,80),[bigEyeSeq]);
+  const smallGrid  = useMemo(()=>buildDerivedGrid(smallSeq,6,80),[smallSeq]);
+  const roachGrid  = useMemo(()=>buildDerivedGrid(roachSeq,6,80),[roachSeq]);
+
+  const push = (x)=> setResults(prev=>[...prev, x]);
+  const random = ()=>{
+    const r = Math.random();
+    if(r<0.46) push(B); else if(r<0.92) push(P); else push(T); // rough odds
+  };
+  const undo = ()=> setResults(prev=>prev.slice(0,-1));
+  const reset = ()=> setResults([]);
+
+  return (
+    <div className="p-4 max-w-[1400px] mx-auto space-y-4">
+      <h1 className="text-2xl font-semibold">百家樂模擬器 <span className="text-sm text-slate-400">珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路</span></h1>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn" onClick={()=>push(B)}>＋莊 (B)</button>
+        <button className="btn" onClick={()=>push(P)}>＋閒 (P)</button>
+        <button className="btn" onClick={()=>push(T)}>＋和 (T)</button>
+        <button className="btn" onClick={random}>隨機一手</button>
+        <button className="btn" onClick={undo}>復原</button>
+        <button className="btn" onClick={reset}>清空</button>
+        <div className="ml-3 text-sm text-slate-300">統計｜莊 {counts.B}、閒 {counts.P}、和 {counts.T}</div>
+      </div>
+
+      {/* Boards */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="board">
+          <div className="title mb-2">珠盤路（由上到下、左至右）</div>
+          <Grid grid={bead} mode="bead" />
         </div>
-      );
-    }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-  </script>
+        <div className="board">
+          <div className="title mb-2">大路（左至右、上到下，同色同列）</div>
+          <Grid grid={bigGrid} mode="big" />
+        </div>
+
+        <div className="board">
+          <div className="title mb-2">大眼仔路（依常見賭場規則延伸）</div>
+          <Grid grid={bigEyeGrid} mode="derived" />
+          <div className="text-xs text-slate-400 mt-2 leading-5">
+            規則要點：從第2欄起可計；<br/>
+            續落同列時，比較「左一欄」與「左{String(1+1)}欄」在同一列是否有子：一致=紅，不一致=藍。<br/>
+            換列（新欄）時，比較「左一欄」與「左{String(1+1)}欄」的欄高是否相等：相等=紅，不等=藍。
+          </div>
+        </div>
+
+        <div className="board">
+          <div className="title mb-2">小路（依常見賭場規則延伸）</div>
+          <Grid grid={smallGrid} mode="derived" />
+          <div className="text-xs text-slate-400 mt-2">從第3欄起可計；比較偏移為「左一 vs 左三」。</div>
+        </div>
+
+        <div className="board">
+          <div className="title mb-2">蟑螂路（依常見賭場規則延伸）</div>
+          <Grid grid={roachGrid} mode="derived" />
+          <div className="text-xs text-slate-400 mt-2">從第4欄起可計；比較偏移為「左一 vs 左四」。</div>
+        </div>
+      </div>
+
+      <div className="text-xs text-slate-500">
+        快捷鍵：<span className="kbd">B</span> 加莊、<span className="kbd">P</span> 加閒、<span className="kbd">T</span> 加和、
+        <span className="kbd">R</span> 隨機、<span className="kbd">U</span> 復原、<span className="kbd">C</span> 清空。
+      </div>
+    </div>
+  );
+}
+
+function mount(){
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  // Hotkeys
+  window.addEventListener('keydown', (e)=>{
+    const key = e.key.toLowerCase();
+    const btn = {
+      'b':()=>document.querySelectorAll('.btn')[0].click(),
+      'p':()=>document.querySelectorAll('.btn')[1].click(),
+      't':()=>document.querySelectorAll('.btn')[2].click(),
+      'r':()=>document.querySelectorAll('.btn')[3].click(),
+      'u':()=>document.querySelectorAll('.btn')[4].click(),
+      'c':()=>document.querySelectorAll('.btn')[5].click(),
+    }[key];
+    if(btn) { e.preventDefault(); btn(); }
+  });
+}
+
+mount();
+</script>
 </body>
 </html>
