@@ -50,10 +50,10 @@
       return Array.from({length:max+1},(_,i)=>map.get(i)||[]);
     }
 
-    // ---------------- 下三路（第一版「規律判斷」） ----------------
-    // 起算：大眼仔第2欄、小路第3欄、蟑螂路第4欄
-    // r>0（同欄直落）：比較前 N 欄同列是否有子 → 有=紅、無=藍
-    // r==0（新開欄）：比較指定兩欄高度是否相等 → 相等=紅、不等=藍
+    // ---------------- 下三路（依你圖的規則） ----------------
+    // 起算：大眼仔從第2欄、小路第3欄、蟑螂路第4欄。
+    // 同欄往下(r>0)：看前N欄同一列是否有子 → 有=紅 沒=藍
+    // 新開一欄(r==0)：比兩欄高度是否相等 → 相等=紅 不等=藍（N 依各路不同）
     function deriveRoads(nodes){
       const cols=bigRoadColumns(nodes).map(c=>({len:c.length}));
       const BE=[], SL=[], CK=[];
@@ -72,32 +72,31 @@
       return {bigEye:BE, small:SL, cockroach:CK};
     }
 
-    // ---------------- 珠盤路（上→下、左→右）※已改成欄優先 ----------------
-    function BeadPlate({seq}){
-      // 先填滿同一欄由上到下，再往右欄
-      const grid=Array.from({length:ROWS},()=>Array(BEAD_COLS).fill(null));
-      seq.forEach((x,i)=>{
-        const col=Math.floor(i/ROWS); // 第幾欄（左→右）
-        const row=i%ROWS;             // 欄內行（上→下）
-        if(col<BEAD_COLS) grid[row][col]=x;
-      });
-      return <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
-        {grid.map((row,ri)=><React.Fragment key={ri}>
-          {row.map((x,ci)=>
-            <div key={ci} className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">
-              {x && (x===T
-                ? <div className="w-4 h-4 border-2 border-emerald-400 rounded-full" title="T"/>
-                : <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`} title={x}/>
-              )}
-            </div>
-          )}
-        </React.Fragment>)}
-      </div>;
-    }
+    // ---------------- 珠盤路 ----------------
+    const buildBead = (seq)=>seq;
 
-    // ---------------- 大路顯示 ----------------
+    // ---------------- UI 小元件 ----------------
+    const Section=({title,children})=>
+      <div className="bg-slate-900 rounded-2xl p-4 shadow">
+        <h2 className="text-slate-100 font-semibold mb-2">{title}</h2>
+        {children}
+      </div>;
+
     const Cell=({children})=>
       <div className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">{children}</div>;
+
+    function BeadPlate({seq}){
+      const cells=Array(BEAD_COLS*ROWS).fill(null);
+      seq.forEach((x,i)=>{ if(i<cells.length) cells[i]=x; });
+      return <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
+        {cells.map((x,i)=><Cell key={i}>
+          {x && (x===T
+            ? <div className="w-4 h-4 border-2 border-emerald-400 rounded-full" title="T"/>
+            : <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`} title={x}/>
+          )}
+        </Cell>)}
+      </div>;
+    }
 
     function BigRoad({nodes}){
       const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
@@ -106,7 +105,7 @@
         <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
           {grid.map((row,ri)=><React.Fragment key={ri}>
             {row.map((n,ci)=><Cell key={ci}>
-              {n && <div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"} relative`} title={n.who}>
+              {n && <div className={`w-4 h-4 rounded-full ${n.who===B?"bg-red-500":"bg-blue-500"} relative`} title={`${n.who}`}>
                 {n.ties ? <span className="absolute text-[10px] text-white top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{n.ties}</span> : null}
               </div>}
             </Cell>)}
@@ -115,16 +114,14 @@
       </div>;
     }
 
-    // ---------------- 下三路顯示（左→右、上→下）※重點：列優先 ----------------
     function DerivedRoad({dots,symbol}){
-      // 改為「列優先」：先從左到右填一整列，滿了再往下換列
       const grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
-      let idx=0;
+      let last=null;
       for(const d of dots){
-        const r=Math.floor(idx/COLS);
-        const c=idx%COLS;
-        if(r<ROWS) grid[r][c]=d;
-        idx++;
+        if(!last){ grid[0][0]=d; last={c:0,r:0}; continue; }
+        let c=last.c, r=last.r+1;
+        if(r>=ROWS || grid[r][c]){ c=c+1; r=0; }
+        grid[r][c]=d; last={c,r};
       }
       return <div className="overflow-x-auto">
         <div className="inline-grid" style={{gridTemplateColumns:`repeat(${COLS},18px)`}}>
@@ -141,13 +138,6 @@
     }
 
     // ---------------- App ----------------
-    function Section({title,children}){return (
-      <div className="bg-slate-900 rounded-2xl p-4 shadow">
-        <h2 className="text-slate-100 font-semibold mb-2">{title}</h2>
-        {children}
-      </div>
-    );}
-
     function App(){
       const [st,setSt]=useLocalState("bacc_full",{seq:[]});
       const add=x=>setSt(s=>({...s,seq:[...s.seq,x]}));
@@ -156,7 +146,7 @@
 
       const nodes=buildBigRoad(st.seq);
       const {bigEye,small,cockroach}=deriveRoads(nodes);
-      const bead=st.seq; // 珠盤路直接用原序列
+      const bead=buildBead(st.seq);
 
       return (
         <div className="max-w-[1200px] mx-auto p-4 space-y-4">
@@ -179,7 +169,7 @@
           </div>
 
           <p className="text-xs text-slate-400">
-            下三路紅/藍代表規律/不規律（與莊/閒無關）。和局不推進，只在當前大路格標記次數。
+            下三路紅/藍代表規律/不規律（與莊/閒顏色無關）。和局不推進，只在當前大路格標記次數。
           </p>
         </div>
       );
