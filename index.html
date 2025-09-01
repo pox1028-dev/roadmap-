@@ -73,7 +73,30 @@
     }
 
     // ---------------- 珠盤路 ----------------
-    const buildBead = (seq)=>seq;
+      function BeadPlate({seq}){
+      const grid=Array.from({length:ROWS},()=>Array(BEAD_COLS).fill(null));
+      seq.forEach((x,i)=>{
+        const col=Math.floor(i/ROWS);  // 先填滿同一欄
+        const row=i%ROWS;               // 欄內從上到下
+        if(col<BEAD_COLS) grid[row][col]=x;
+      });
+      return (
+        <div className="inline-grid" style={{gridTemplateColumns:`repeat(${BEAD_COLS},18px)`}}>
+          {grid.map((row,ri)=>(
+            <React.Fragment key={ri}>
+              {row.map((x,ci)=>(
+                <div key={ci} className="w-[18px] h-[18px] border border-slate-700 flex items-center justify-center">
+                  {x && (x===T
+                    ? <div className="w-4 h-4 border-2 border-emerald-400 rounded-full" title="T"/>
+                    : <div className={`w-4 h-4 rounded ${x===B?"bg-red-500":"bg-blue-500"}`} title={x}/>
+                  )}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
 
     // ---------------- UI 小元件 ----------------
     const Section=({title,children})=>
