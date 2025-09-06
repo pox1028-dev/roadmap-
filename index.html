@@ -1,301 +1,938 @@
+已使用 84% 的儲存空間 … 儲存空間耗盡後，你就無法建立、編輯及上傳檔案。
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>百家樂模擬器｜珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路</title>
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React 18 + ReactDOM 18 -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel (run JSX in browser) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <title>百家樂紀錄表 v8.1（命中率｜UTF-8/UTF-16 匯出｜含珠盤路/大路）</title>
   <style>
-    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8 }
-    body { background:var(--bg); color:#e5e7eb }
-    .cell { width:18px; height:18px; border:1px solid #1f2937; display:flex; align-items:center; justify-content:center; }
-    .dot { width:14px; height:14px; border-radius:9999px; box-sizing:border-box; }
-    .b { background:#ef4444; border:2px solid #ef4444 } /* Banker red */
-    .p { background:#60a5fa; border:2px solid #60a5fa } /* Player blue */
-    .t { background:#10b981; border:2px dashed #10b981 } /* Tie green dashed */
-    .r { background:#ef4444; border:2px solid #ef4444 } /* derived red */
-    .u { background:#60a5fa; border:2px solid #60a5fa } /* derived blue */
-    .board { background:var(--card); border-radius:14px; padding:12px }
-    .title { color:#cbd5e1 }
-    .btn { padding:.5rem .75rem; border-radius:.6rem; background:#1f2937 }
-    .btn:hover { background:#374151 }
-    .kbd { padding:.15rem .4rem; border:1px solid #475569; border-bottom-width:2px; border-radius:6px; font-size:.8rem; color:#cbd5e1 }
+    :root{
+      --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
+      --blue:#2563eb; --red:#dc2626; --green:#059669; --line:#1f2937;
+      --ring:#a78bfa; --warn:#f59e0b; --err:#f87171;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans',sans-serif}
+    .wrap{max-width:1220px;margin:0 auto;padding:16px}
+    h1{font-size:24px;margin:0 0 6px}
+    .sub{color:#94a3b8;font-size:12px;margin-bottom:12px}
+    .row{display:flex;flex-wrap:wrap;gap:8px}
+    .btn{background:#1f2937;color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:12px;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.primary{background:#6366f1;border-color:#6366f1}
+    .btn.warn{background:#334155}
+    .card{background:rgba(17,24,39,.7);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    label{display:block;font-size:12px;color:#cbd5e1;margin-bottom:6px}
+    input[type=text]{width:100%;padding:10px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:#e5e7eb;outline:none;text-transform:uppercase}
+    input[type=text]:focus{box-shadow:0 0 0 3px rgba(167,139,250,.35);border-color:#7c3aed}
+    input.err{border-color:#f87171}
+    .grid{display:grid;gap:8px}
+    @media(min-width:1024px){.grid-6{grid-template-columns:repeat(6,1fr)}}
+    @media(min-width:700px){.grid-3{grid-template-columns:repeat(3,1fr)}}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-weight:700;font-size:12px}
+    .badge.blue{background:rgba(37,99,235,.85);color:#fff}
+    .badge.red{background:rgba(220,38,38,.85);color:#fff}
+    .badge.green{background:rgba(5,150,105,.85);color:#fff}
+    .badge.amber{background:rgba(245,158,11,.85);color:#0b1220}
+    .badge.violet{background:rgba(139,92,246,.85);color:#fff}
+    .badge.gray{background:rgba(148,163,184,.3);color:#cbd5e1}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    thead th{background:#0b1220;color:#cbd5e1;text-align:left;padding:10px;border-bottom:1px solid #1f2937}
+    tbody td{padding:10px;border-bottom:1px solid #0b1220;vertical-align:top}
+    tr:nth-child(2n){background:rgba(2,6,23,.35)}
+    .muted{color:#94a3b8}
+    .counts{font-size:28px;font-weight:800}
+    .percent{font-size:12px;color:#94a3b8}
+    .hint{font-size:12px;color:#94a3b8}
+    .resultBox{font-size:14px}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid #334155;background:#0b1220;cursor:pointer;user-select:none}
+    .pillRow{display:flex;flex-wrap:wrap;gap:6px}
+    .ok{color:#22c55e;font-size:12px;margin-left:6px}
+    .sep{height:1px;background:#1f2937;margin:8px 0}
+    .flow{font-size:12px;color:#cbd5e1}
+    .flow b{color:#fff}
+    .tag{display:inline-block;margin-right:6px;margin-top:4px}
+    .nexthint{display:grid;grid-template-columns:auto auto auto auto 1fr;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);margin-top:4px}
+    .nexthint .label{color:#94a3b8;font-size:12px}
+    .nexthint .sp{color:#94a3b8}
+
+    /* 路單格 */
+    .roadWrap{display:grid;gap:12px}
+    @media(min-width:900px){.roadWrap{grid-template-columns:1fr 1fr}}
+    .roadCard{background:rgba(17,24,39,.7);border:1px solid #1f2937;border-radius:16px;padding:12px}
+    .roadTitle{font-size:14px;font-weight:600;margin-bottom:8px}
+    .roadGrid{display:inline-grid;border:1px solid #1f2937;background:#0b1220}
+    .cell{width:24px;height:24px;border-right:1px solid #1f2937;border-bottom:1px solid #1f2937;display:flex;align-items:center;justify-content:center}
+    .dot{width:16px;height:16px;border-radius:999px;box-shadow:0 0 0 2px rgba(255,255,255,.08) inset}
+    .P{background:#2563eb}
+    .B{background:#dc2626}
+    .T{background:#059669}
   </style>
 </head>
 <body>
-<div id="root"></div>
+  <div class="wrap">
+    <header class="row" style="align-items:flex-end;justify-content:space-between;gap:12px">
+      <div>
+        <h1>百家樂紀錄表 v8.1</h1>
+        <div class="sub">策略：<b>PD</b>、<b>EV</b>、<b>ADV(分邊優勢)</b>；命中率面板（PD/EV/ADV/兩套一致/全一致）。<br>新增：<b>CSV(UTF‑8)</b> 與 <b>TSV(UTF‑16LE，Excel免亂碼)</b> 匯出。｜本版加上：<b>珠盤路</b>、<b>大路</b> 視覺化。</div>
+      </div>
+      <div class="row">
+        <button id="undoBtn" class="btn">撤銷上一局</button>
+        <button id="clearBtn" class="btn warn">全部清空</button>
+        <button id="csvBtn" class="btn">匯出 CSV（UTF‑8）</button>
+        <button id="tsvBtn" class="btn">匯出 TSV（Excel免亂碼）</button>
+      </div>
+    </header>
 
-<script type="text/babel">
-const {useState, useMemo} = React;
+    <section class="nexthint" id="nextHintWrap" style="display:none">
+      <div class="label">下一手：</div>
+      <div id="nextHintBadgePD" class="badge gray">PD—</div>
+      <div id="nextHintBadgeEV" class="badge gray">EV—</div>
+      <div id="nextHintBadgeADV" class="badge gray">ADV—</div>
+      <div id="nextHintConsensus" class="badge gray">—</div>
+      <div class="sp"></div>
+      <div id="nextHintText" class="muted" style="grid-column:1/-1"></div>
+    </section>
 
-// ====== Helpers ======
-const B='B', P='P', T='T';
+    <section class="card" style="margin-top:10px">
+      <div class="grid grid-6">
+        <div>
+          <label>閒 P1</label>
+          <input id="p1" type="text" placeholder="A/1-9/10/J/Q/K" />
+        </div>
+        <div>
+          <label>閒 P2</label>
+          <input id="p2" type="text" placeholder="A/1-9/10/J/Q/K" />
+        </div>
+        <div>
+          <label>莊 B1</label>
+          <input id="b1" type="text" placeholder="A/1-9/10/J/Q/K" />
+        </div>
+        <div>
+          <label>莊 B2</label>
+          <input id="b2" type="text" placeholder="A/1-9/10/J/Q/K" />
+        </div>
+        <div>
+          <label>閒 P3 <span id="p3Hint" class="muted"></span></label>
+          <input id="p3" type="text" placeholder="若規則需補才填" />
+        </div>
+        <div>
+          <label>莊 B3 <span id="b3Hint" class="muted"></span></label>
+          <input id="b3" type="text" placeholder="若規則需補才填" />
+        </div>
 
-// Make empty grid (rows x cols)
-function makeGrid(rows, cols){
-  return Array.from({length:rows},()=>Array(cols).fill(null));
-}
+        <div class="pillRow" style="grid-column:1/-1;margin-top:4px">
+          <span class="muted" style="align-self:center">快速輸入：</span>
+          <span class="pill k">A</span>
+          <span class="pill k">1</span><span class="pill k">2</span><span class="pill k">3</span><span class="pill k">4</span><span class="pill k">5</span><span class="pill k">6</span><span class="pill k">7</span><span class="pill k">8</span><span class="pill k">9</span>
+          <span class="pill k">10</span><span class="pill k">J</span><span class="pill k">Q</span><span class="pill k">K</span>
+          <span class="muted" style="margin-left:8px">（點一下會填到「最近一次聚焦」的欄位，並自動跳到下一個需要輸入的欄位）</span>
+        </div>
 
-// Push into bead plate (珠盤路): top->bottom, left->right
-function beadFill(results, rows=6, cols=30){
-  const grid = makeGrid(rows, cols);
-  let idx=0;
-  for(const r of results){
-    const c = Math.floor(idx/rows); // left to right
-    const row = idx%rows;           // top to bottom
-    if(c<cols) grid[row][c]=r;      // ignore overflow
-    idx++;
-  }
-  return grid;
-}
+        <div class="sep" style="grid-column:1/-1"></div>
 
-// Build Big Road columns from sequence WITHOUT ties
-// Rule: same result continues down; change starts a new column.
-// If going down hits bottom OR next cell occupied, wrap to new column.
-function buildBigRoad(sequenceNoTies, maxRows=6){
-  const cols=[]; // array of columns, each column is array of entries top->bottom
-  let last=null;
-  for(const r of sequenceNoTies){
-    if(!last){ // very first
-      cols[0]=cols[0]||[]; cols[0][0]=r; last=r; continue;
-    }
-    let c = cols.length-1;
-    let col = cols[c];
-    const topSame = (r===last);
-    if(topSame){
-      // try to go down one row
-      const nextRow = (col?col.length:0);
-      // If bottom reached OR the cell below would cause a 'kink' (occupied in previous column when same row already taken)
-      if(nextRow>=maxRows || (c>0 && (cols[c-1]||[])[nextRow-1]===undefined && (cols[c-1]||[]).length < nextRow)){
-        // start new column if can't go further down (standard wrap)
-        cols.push([r]);
-      } else {
-        col.push(r);
+        <div class="flow" style="grid-column:1/-1" id="flowText">流程提示：請依序輸入 P1, P2, B1, B2。</div>
+
+        <div class="resultBox" style="grid-column:1/-1;margin-top:6px">
+          預覽：<span id="previewText" class="muted">尚未足夠計算。</span>
+        </div>
+
+        <div class="row" style="grid-column:1/-1;margin-top:6px">
+          <button id="addBtn" class="btn primary" style="flex:1">新增紀錄</button>
+          <button id="resetBtn" class="btn">重設輸入</button>
+          <button id="cancelEditBtn" class="btn" style="display:none">取消編輯</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-3" style="margin-top:10px">
+      <div class="card">
+        <div class="muted" style="font-size:12px">總局數</div>
+        <div id="statTotal" class="counts">0</div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div class="muted" style="font-size:12px">閒勝</div>
+          <span class="badge blue">閒</span>
+        </div>
+        <div class="counts"><span id="statP">0</span> <span class="percent" id="statPpct">(0.0%)</span></div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div class="muted" style="font-size:12px">莊勝</div>
+          <span class="badge red">莊</span>
+        </div>
+        <div class="counts"><span id="statB">0</span> <span class="percent" id="statBpct">(0.0%)</span></div>
+      </div>
+      <div class="card" style="grid-column:1/-1">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div class="muted" style="font-size:12px">和局</div>
+        <span class="badge green">和</span>
+        </div>
+        <div class="counts"><span id="statT">0</span> <span class="percent" id="statTpct">(0.0%)</span></div>
+      </div>
+    </section>
+
+    <!-- 新增：路單區塊 -->
+    <section class="roadWrap" style="margin-top:10px">
+      <div class="roadCard">
+        <div class="roadTitle">珠盤路</div>
+        <div id="beadGrid" class="roadGrid"></div>
+      </div>
+      <div class="roadCard">
+        <div class="roadTitle">大路（忽略和）</div>
+        <div id="bigGrid" class="roadGrid"></div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:10px">
+      <h3 style="margin:0 0 8px">策略命中率</h3>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">
+        計算方式：第 <i>i</i> 局的「下一手建議」對比第 <i>i+1</i> 局實際結果。<b>下一局為和</b>視為 push，<b>不列入</b>命中率母數（但另計 Push 次數）。最後一局因無下一局，不納入評估。
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>策略</th>
+              <th>訊號數</th>
+              <th>Push(和)次</th>
+              <th>評估局數</th>
+              <th>命中</th>
+              <th>命中率</th>
+              <th>說明</th>
+            </tr>
+          </thead>
+          <tbody id="accTbody">
+            <tr><td colspan="7" class="muted" style="text-align:center;padding:18px">尚無資料。新增至少 2 局即可開始統計。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:10px">
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:54px">局數</th>
+              <th>閒牌</th>
+              <th>莊牌</th>
+              <th>閒點</th>
+              <th>莊點</th>
+              <th>結果</th>
+              <th>對子</th>
+              <th>龍寶</th>
+              <th>超級6</th>
+              <th>PD S/V</th>
+              <th>PD 下一把</th>
+              <th>EV S</th>
+              <th>EV 下一把</th>
+              <th>ADV CP/AP閒/AP莊/閒優勢/莊優勢</th>
+              <th>ADV 下一把</th>
+              <th>共識</th>
+              <th style="width:170px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="16" class="muted" style="text-align:center;padding:18px">尚無紀錄，請在上方輸入牌後按「新增紀錄」。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:6px">
+        牌例（平台）：閒 0–5 補、6–7 停；自然 8/9 停。莊：閒未補→莊 0–5 補、6–7 停；閒有補→莊 0–2 補、3避8、4避0/1/8/9、5避0/1/2/3/8/9、6取6/7、7停；自然 8/9 停。<br/>
+        龍寶：非例牌差 4–9 依表賠；例牌勝 1:1；例牌和退本金；非例牌和龍寶輸。｜超級6：莊 6 點勝—2 張 1:12，3 張 1:20。<br/>
+        <b>PD：</b> A+1,3+1,5+2,7+4｜2-1,4-1,6-2,8-2,9-3；10/J/Q/K=0 只做反轉；<u>上一手</u>S>0→莊、S<0→閒、S=0→不下注；變數張數 V 奇→反轉。<br/>
+        <b>EV：</b> 2/3/4/5=+1；A/6/7/10/J/Q/K=-1；8/9=0；<u>上一手</u> S>0→閒、S<0→莊、S=0→不下注。<br/>
+        <b>ADV(牌數優勢值，分邊)：</b> 牌值 A=-5,2=-4,3=-3,4=-2,5=+1,6=+2,7=+3,8=+4,9=+5,10/J/Q/K=0；<br/>
+        CP =（閒牌值總和）+（莊牌值總和）；AP(0..9) = {0:0.5,1:0.4,2:0.3,3:0.3,4:0.1,5:0.2,6:0.3,7:0.3,8:0.5,9:0.1}；<br/>
+        閒優勢 = CP×AP(閒點)，莊優勢 = CP×AP(莊點)；較大者為下一把建議；相等→不下注。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function(){
+      const LS_KEY = 'baccarat-records-v8-1-acc';
+      let records = []; // { round, pCards, bCards, pTotal, bTotal, result, pairs, dragon, super6, pd, ev, adv, consensus }
+      let editIndex = null;
+
+      const ids = (arr) => arr.reduce((o,id)=> (o[id]=document.getElementById(id), o), {});
+      const $ = ids(['p1','p2','p3','b1','b2','b3','addBtn','resetBtn','cancelEditBtn','undoBtn','clearBtn','csvBtn','tsvBtn','tbody','statTotal','statP','statB','statT','statPpct','statBpct','statTpct','previewText','p3Hint','b3Hint','flowText','nextHintWrap','nextHintBadgePD','nextHintBadgeEV','nextHintBadgeADV','nextHintConsensus','nextHintText','accTbody','beadGrid','bigGrid']);
+      const inputs = [$.p1,$.p2,$.b1,$.b2,$.p3,$.b3];
+      let lastFocused = $.p1;
+
+      // --- 通用工具 ---
+      function normalizeRank(s){
+        if(!s) return '';
+        s = String(s).trim().toUpperCase();
+        if(s==='T') s='10';
+        return s;
       }
-    } else {
-      // color changed -> start a new column
-      cols.push([r]);
-    }
-    last=r;
-  }
-  // Normalize undefined holes to null
-  for(let i=0;i<cols.length;i++) cols[i]=cols[i]||[];
-  return cols;
-}
-
-// Convert Big Road columns to a paintable grid (left->right columns, top->bottom rows)
-function bigRoadGrid(cols, rows=6, maxCols=80){
-  const grid = makeGrid(rows, maxCols);
-  for(let c=0;c<cols.length && c<maxCols; c++){
-    const col = cols[c];
-    for(let r=0;r<Math.min(col.length, rows); r++){
-      grid[r][c]=col[r];
-    }
-  }
-  return grid;
-}
-
-// === Derived roads (大眼仔/小路/蟑螂) ===
-// Common casino rule set (look-left method):
-//   For a Big Road placement at (c, r):
-//   * When r>1 (continuing a streak), check if the reference column at the same row exists.
-//       - If exists -> RED (一致) ; else BLUE (不一致)
-//   * When r==1 (new column), compare the lengths of the previous column and the reference column.
-//       - Equal -> RED ; not equal -> BLUE
-// Offsets:
-//   * Big Eye Boy:   ref = c-2  (offset=1)   starts once there is a column 2
-//   * Small Road:    ref = c-3  (offset=2)   starts once there is a column 3
-//   * Cockroach Pig: ref = c-4  (offset=3)   starts once there is a column 4
-// Return 'R' or 'U' (red/blue) sequence aligned to usable Big Road entries.
-function buildDerivedFromBig(bigCols, offset){
-  const marks=[]; // each item is {color:'R'|'U'}
-  for(let c=0;c<bigCols.length; c++){
-    const col = bigCols[c];
-    for(let r=0;r<col.length; r++){
-      // We need at least (offset+1) columns to the left to evaluate
-      if(c <= offset) continue;
-      let color;
-      if(r>0){
-        // continuing down -> check existence at same row in column (c-1-offset)? NO, casino rule compares (c-1) vs (c-1-offset) by presence at this row.
-        const leftHas = (bigCols[c-1]||[])[r] !== undefined;      // same row exists in immediate left column
-        const refHas  = (bigCols[c-1-offset]||[])[r] !== undefined; // same row exists in reference column further left
-        // Big Eye/Small/Cockroach only look at ONE of them depending on tradition; most casinos only check the reference column presence, but having both keeps symmetry.
-        // We follow the widely used rule: color = (leftHas === refHas) ? 'R' : 'U'.
-        color = (leftHas === refHas) ? 'R' : 'U';
-      } else {
-        const lenPrev = (bigCols[c-1]||[]).length;
-        const lenRef  = (bigCols[c-1-offset]||[]).length;
-        color = (lenPrev === lenRef) ? 'R' : 'U';
+      function strToVal(s){
+        if(!s) return null;
+        s = String(s).trim().toUpperCase();
+        if(s==='A' || s==='1') return 1;
+        if(/^([2-9])$/.test(s)) return +s;
+        if(s==='10' || s==='T' || s==='J' || s==='Q' || s==='K') return 0;
+        return NaN;
       }
-      marks.push(color);
-    }
-  }
-  return marks;
-}
+      function valSum10(arr){
+        let tot = 0;
+        for(const r of arr){ tot += (strToVal(r)||0); }
+        return tot % 10;
+      }
+      function decidePlayerDraw(pTotal){
+        if(pTotal>=8) return false;
+        if(pTotal<=5) return true;
+        return false;
+      }
+      function decideBankerDraw(bTotal, playerDrew, p3val){
+        if(bTotal>=8) return false;
+        if(!playerDrew){
+          return (bTotal<=5);
+        }else{
+          if(bTotal<=2) return true;
+          if(bTotal===3) return p3val!==8;
+          if(bTotal===4) return !(p3val===0 || p3val===1 || p3val===8 || p3val===9);
+          if(bTotal===5) return !(p3val===0 || p3val===1 || p3val===2 || p3val===3 || p3val===8 || p3val===9);
+          if(bTotal===6) return (p3val===6 || p3val===7);
+          return false;
+        }
+      }
+      function decideWinner(pTotal, bTotal){
+        if(pTotal>bTotal) return '閒';
+        if(bTotal>pTotal) return '莊';
+        return '和';
+      }
+      function badge(kind){ 
+        if(kind==='閒') return '<span class="badge blue">閒</span>';
+        if(kind==='莊') return '<span class="badge red">莊</span>';
+        if(kind==='和') return '<span class="badge green">和</span>';
+        if(kind.startsWith('全一致')) return '<span class="badge green">'+kind+'</span>';
+        if(kind.startsWith('兩套一致')) return '<span class="badge green">'+kind+'</span>';
+        if(kind==='一致(不下注)') return '<span class="badge gray">一致(不下注)</span>';
+        if(kind==='不下注') return '<span class="badge gray">不下注</span>';
+        if(kind==='分歧') return '<span class="badge amber">分歧</span>';
+        return '<span class="badge gray">—</span>';
+      }
 
-// Render a derived road as grid with same stacking rule as Big Road but using R/U colors
-function buildDerivedGrid(marks, rows=6, maxCols=80){
-  // Convert R/U sequence into columns using same rule as Big Road (streaks of same color keep going down)
-  const cols=[]; let last=null;
-  for(const m of marks){
-    if(!last){ cols[0]=[m]; last=m; continue; }
-    let c = cols.length-1; const col = cols[c];
-    if(m===last){
-      const nextRow = col.length;
-      if(nextRow>=rows){ cols.push([m]); }
-      else { col.push(m); }
-    } else {
-      cols.push([m]);
-    }
-    last=m;
-  }
-  // into grid
-  const grid = makeGrid(rows, Math.max(cols.length, 1));
-  for(let c=0;c<cols.length;c++){
-    const col=cols[c];
-    for(let r=0;r<Math.min(rows,col.length);r++) grid[r][c]=col[r];
-  }
-  return grid;
-}
+      // 對子、龍寶、超級6
+      function isPair(r1,r2){ r1=normalizeRank(r1); r2=normalizeRank(r2); return r1 && r1===r2; }
+      function pairsInfo(P1,P2,B1,B2){
+        const pPair = isPair(P1,P2);
+        const bPair = isPair(B1,B2);
+        const anyPair = pPair || bPair;
+        const tags = [];
+        if(pPair) tags.push('<span class="badge blue tag">閒對</span>');
+        if(bPair) tags.push('<span class="badge red tag">莊對</span>');
+        if(anyPair) tags.push('<span class="badge amber tag">任意對</span>');
+        return { pPair, bPair, anyPair, html: tags.join('') || '<span class="muted">—</span>' };
+      }
+      function dragonBonusInfo(natural, winner, pTot, bTot){
+        if(winner==='和'){
+          if(natural) return { side:null, diff:0, outcome:'push', labelHtml:'<span class="muted">例牌和：退本金</span>' };
+          return { side:null, diff:0, outcome:'lose', labelHtml:'<span class="muted">非例牌和：龍寶輸</span>' };
+        }
+        const side = winner;
+        if(natural){
+          return { side, diff:null, outcome:'win-1:1', labelHtml:`<span class="badge green">${side}龍寶 1:1（例牌勝）</span>` };
+        }
+        const diff = Math.abs(pTot - bTot);
+        const payMap = {4:'1:1',5:'1:2',6:'1:3',7:'1:5',8:'1:10',9:'1:30'};
+        if(diff>=4 && diff<=9){
+          return { side, diff, outcome:`win-${payMap[diff]}`, labelHtml:`<span class="badge green">${side}龍寶 差${diff} → ${payMap[diff]}</span>` };
+        }
+        return { side, diff, outcome:'lose', labelHtml:'<span class="muted">差距 < 4：龍寶不賠</span>' };
+      }
+      function super6Info(winner, bTotal, bCardsLen){
+        if(winner!=='莊' || bTotal!==6) return { ok:false, labelHtml:'<span class="muted">—</span>' };
+        const pay = (bCardsLen===2) ? '1:12' : '1:20';
+        const note = (bCardsLen===2) ? '（2張）' : '（3張）';
+        return { ok:true, pay, labelHtml:`<span class="badge violet">超級6 ${pay} ${note}</span>` };
+      }
 
-// === UI Components ===
-function Grid({grid, mode}){
-  // mode: 'bead' uses B/P/T colors; 'big' uses B/P; 'derived' uses R/U
-  return (
-    <div className="inline-block">
-      {grid.map((row,ri)=>(
-        <div key={ri} className="flex">
-          {row.map((cell,ci)=>(
-            <div key={ci} className="cell">
-              {cell && (
-                <div className={`dot ${
-                  mode==='bead' ? (cell===B? 'b' : cell===P? 'p' : 't') :
-                  mode==='big'  ? (cell===B? 'b' : 'p') :
-                                   (cell==='R'? 'r' : 'u')
-                }`}></div>
-              )}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+      // --- PD 公式 ---
+      function pdValue(rank){
+        rank = normalizeRank(rank);
+        if(rank==='A' || rank==='1') return 1;
+        if(rank==='3') return 1;
+        if(rank==='5') return 2;
+        if(rank==='7') return 4;
+        if(rank==='2') return -1;
+        if(rank==='4') return -1;
+        if(rank==='6') return -2;
+        if(rank==='8') return -2;
+        if(rank==='9') return -3;
+        if(rank==='10' || rank==='J' || rank==='Q' || rank==='K') return 0;
+        return 0;
+      }
+      function isVariable(rank){
+        rank = normalizeRank(rank);
+        return (rank==='10' || rank==='J' || rank==='Q' || rank==='K');
+      }
+      function pdFromCards(allCards){
+        let S = 0, V = 0;
+        for(const r of allCards){
+          S += pdValue(r);
+          if(isVariable(r)) V++;
+        }
+        let base = '—', final = '—', flipped = false;
+        if(S>0) base = '莊';
+        else if(S<0) base = '閒';
+        else base = '不下注';
+        if(base!=='不下注'){
+          if(V % 2 === 1){ final = (base==='莊' ? '閒':'莊'); flipped=true; }
+          else { final = base; }
+        } else {
+          final = '不下注';
+        }
+        return { S, V, base, final, flipped };
+      }
 
-function App(){
-  const [results, setResults] = useState([]); // sequence including ties
+      // --- EV 值算法 ---
+      function evValue(rank){
+        rank = normalizeRank(rank);
+        if(rank==='2' || rank==='3' || rank==='4' || rank==='5') return 1;
+        if(rank==='A' || rank==='1' || rank==='6' || rank==='7' || rank==='10' || rank==='J' || rank==='Q' || rank==='K') return -1;
+        if(rank==='8' || rank==='9') return 0;
+        return 0;
+      }
+      function evFromCards(allCards){
+        let S = 0;
+        for(const r of allCards){ S += evValue(r); }
+        let final = '—';
+        if(S>0) final = '閒';
+        else if(S<0) final = '莊';
+        else final = '不下注';
+        return { S, final };
+      }
 
-  const counts = useMemo(()=>({
-    B: results.filter(x=>x===B).length,
-    P: results.filter(x=>x===P).length,
-    T: results.filter(x=>x===T).length,
-  }),[results]);
+      // --- ADV 牌數優勢值（分邊計） ---
+      function advCardValue(rank){
+        rank = normalizeRank(rank);
+        if(rank==='A' || rank==='1') return -5;
+        if(rank==='2') return -4;
+        if(rank==='3') return -3;
+        if(rank==='4') return -2;
+        if(rank==='5') return 1;
+        if(rank==='6') return 2;
+        if(rank==='7') return 3;
+        if(rank==='8') return 4;
+        if(rank==='9') return 5;
+        if(rank==='10' || rank==='J' || rank==='Q' || rank==='K') return 0;
+        return 0;
+      }
+      const apMap = {0:0.5,1:0.4,2:0.3,3:0.3,4:0.1,5:0.2,6:0.3,7:0.3,8:0.5,9:0.1};
+      function advFromRound(pCards, bCards, pTot, bTot){
+        const pSum = pCards.reduce((s,r)=> s+advCardValue(r), 0);
+        const bSum = bCards.reduce((s,r)=> s+advCardValue(r), 0);
+        const cp = pSum + bSum; // 維持 閒+莊
+        const apP = (apMap[pTot]||0);
+        const apB = (apMap[bTot]||0);
+        const advP = cp * apP;
+        const advB = cp * apB;
+        let final = '—';
+        if(advP > advB) final = '閒';
+        else if(advB > advP) final = '莊';
+        else final = '不下注';
+        return { pSum, bSum, cp, apP, apB, advP, advB, final };
+      }
 
-  const seqNoTies = useMemo(()=>results.filter(x=>x!==T),[results]);
+      // 三向共識
+      function consensus3(pdFinal, evFinal, advFinal){
+        const votes = [pdFinal, evFinal, advFinal].filter(v => v==='閒' || v==='莊');
+        const skip = [pdFinal, evFinal, advFinal].every(v=> v==='不下注');
+        if(skip) return { label:'一致(不下注)', html:'<span class="badge gray">一致(不下注)</span>' };
+        const count = { '閒':0, '莊':0 };
+        for(const v of votes){ count[v]++; }
+        if(count['閒']===3 || count['莊']===3){
+          const side = count['閒']===3 ? '閒' : '莊';
+          return { label:'全一致('+side+')', html:'<span class="badge green">全一致('+side+')</span>' };
+        }
+        if(count['閒']>=2 || count['莊']>=2){
+          const side = count['閒']>=2 ? '閒' : '莊';
+          return { label:'兩套一致('+side+')', html:'<span class="badge green">兩套一致('+side+')</span>' };
+        }
+        return { label:'分歧', html:'<span class="badge amber">分歧</span>' };
+      }
 
-  const bead = useMemo(()=>beadFill(results, 6, 30),[results]);
+      // 命中率計算
+      function computeAccuracyRows(recs){
+        const rows = {
+          PD:{signal:0,push:0,considered:0,hits:0,desc:'PD 單策略'},
+          EV:{signal:0,push:0,considered:0,hits:0,desc:'EV 單策略'},
+          ADV:{signal:0,push:0,considered:0,hits:0,desc:'ADV 單策略（分邊）'},
+          MAJ2:{signal:0,push:0,considered:0,hits:0,desc:'兩套一致（≥2/3）'},
+          ALL3:{signal:0,push:0,considered:0,hits:0,desc:'全一致（3/3）'},
+        };
+        const N = recs.length;
+        for(let i=0;i<N-1;i++){
+          const cur = recs[i], nxt = recs[i+1];
+          const nextRes = nxt.result; // 閒/莊/和
 
-  const bigCols = useMemo(()=>buildBigRoad(seqNoTies, 6),[seqNoTies]);
-  const bigGrid = useMemo(()=>bigRoadGrid(bigCols, 6, 80),[bigCols]);
+          const pd = cur.pd?.final || '不下注';
+          const ev = cur.ev?.final || '不下注';
+          const adv = cur.adv?.final || '不下注';
 
-  const bigEyeSeq = useMemo(()=>buildDerivedFromBig(bigCols, 1), [bigCols]);
-  const smallSeq  = useMemo(()=>buildDerivedFromBig(bigCols, 2), [bigCols]);
-  const roachSeq  = useMemo(()=>buildDerivedFromBig(bigCols, 3), [bigCols]);
+          // MAJ2
+          let maj2 = '不下注';
+          const votes = [pd,ev,adv].filter(v=> v==='閒' || v==='莊');
+          if(votes.length>=2){
+            const c = {閒:0,莊:0};
+            for(const v of votes) c[v]++;
+            if(c['閒']>=2) maj2='閒'; else if(c['莊']>=2) maj2='莊';
+          }
+          // ALL3
+          let all3 = '不下注';
+          if((pd==='閒'||pd==='莊') && pd===ev && ev===adv) all3 = pd;
 
-  const bigEyeGrid = useMemo(()=>buildDerivedGrid(bigEyeSeq,6,80),[bigEyeSeq]);
-  const smallGrid  = useMemo(()=>buildDerivedGrid(smallSeq,6,80),[smallSeq]);
-  const roachGrid  = useMemo(()=>buildDerivedGrid(roachSeq,6,80),[roachSeq]);
+          function evalPred(pred,key){
+            if(pred!=='閒' && pred!=='莊') return; // 無訊號
+            rows[key].signal++;
+            if(nextRes==='和'){ rows[key].push++; return; }
+            rows[key].considered++;
+            if(pred===nextRes) rows[key].hits++;
+          }
+          evalPred(pd,'PD'); evalPred(ev,'EV'); evalPred(adv,'ADV'); evalPred(maj2,'MAJ2'); evalPred(all3,'ALL3');
+        }
+        return rows;
+      }
 
-  const push = (x)=> setResults(prev=>[...prev, x]);
-  const random = ()=>{
-    const r = Math.random();
-    if(r<0.46) push(B); else if(r<0.92) push(P); else push(T); // rough odds
-  };
-  const undo = ()=> setResults(prev=>prev.slice(0,-1));
-  const reset = ()=> setResults([]);
+      // 匯出工具
+      function saveBlob(blob, filename){
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }
+      function rowsForExport(){
+        const header = ['局數','閒牌','莊牌','閒點','莊點','結果','對子','龍寶','超級6','PD_S','PD_V','PD_下一把','EV_S','EV_下一把','ADV_CP','ADV_AP_閒','ADV_AP_莊','ADV_閒優勢','ADV_莊優勢','ADV_下一把','共識'];
+        const rows = [header];
+        for(const r of records){
+          const pairTxt = (r.pairs.pPair?'閒對 ':'') + (r.pairs.bPair?'莊對 ':'') + (r.pairs.anyPair?'任意對':'');
+          const dragonTxt = r.dragon.labelHtml.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+          const super6Txt = r.super6.labelHtml.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+          const pdS = (r.pd.S>0?'+':'') + r.pd.S;
+          const pdV = String(r.pd.V);
+          const pdNext = r.pd.final;
+          const evS = (r.ev.S>0?'+':'') + r.ev.S;
+          const evNext = r.ev.final;
+          const advCP = (r.adv.cp>0?'+':'') + r.adv.cp;
+          const advAPP = r.adv.apP.toFixed(1);
+          const advAPB = r.adv.apB.toFixed(1);
+          const advP = (r.adv.advP>0?'+':'') + r.adv.advP.toFixed(1);
+          const advB = (r.adv.advB>0?'+':'') + r.adv.advB.toFixed(1);
+          const advNext = r.adv.final;
+          const cons = r.consensus.label;
+          rows.push([r.round, r.pCards.join(' '), r.bCards.join(' '), r.pTotal, r.bTotal, r.result, pairTxt, dragonTxt, super6Txt, pdS, pdV, pdNext, evS, evNext, advCP, advAPP, advAPB, advP, advB, advNext, cons]);
+        }
+        return rows;
+      }
+      function exportCSV_UTF8(){
+        const rows = rowsForExport();
+        const lines = rows.map(r => r.map(cell => {
+          let s = String(cell).replace(/\"/g,'\"\"');
+          if(/[,\"\r\n]/.test(s)) s = '\"'+s+'\"';
+          return s;
+        }).join(',')).join('\\r\\n');
+        const content = '\\ufeff' + lines;
+        const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
+        saveBlob(blob, 'baccarat_records_v8_1_utf8.csv');
+      }
+      function exportTSV_UTF16LE(){
+        const rows = rowsForExport();
+        const tsv = rows.map(r => r.map(cell => String(cell).replace(/\\t/g,' ').replace(/\\r?\\n/g,' ')).join('\\t')).join('\\r\\n');
+        const buf = new Uint8Array(2 + tsv.length*2);
+        buf[0]=0xFF; buf[1]=0xFE;
+        for(let i=0;i<tsv.length;i++){
+          const code = tsv.charCodeAt(i);
+          buf[2+i*2] = code & 0xFF;
+          buf[3+i*2] = code >> 8;
+        }
+        const blob = new Blob([buf], {type:'text/tab-separated-values;charset=utf-16le;'});
+        saveBlob(blob, 'baccarat_records_v8_1_excel_tsv_utf16le.tsv');
+      }
 
-  return (
-    <div className="p-4 max-w-[1400px] mx-auto space-y-4">
-      <h1 className="text-2xl font-semibold">百家樂模擬器 <span className="text-sm text-slate-400">珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路</span></h1>
+      // --- 路單建置 ---
+      function seqFromRecords(){
+        // 轉成 P/B/T 序列（閒= P；莊= B；和= T）
+        return records.map(r => r.result==='閒' ? 'P' : r.result==='莊' ? 'B' : 'T');
+      }
+      function buildBead(seq, rows=6){
+        const grid = [];
+        const cols = Math.ceil(seq.length / rows);
+        for(let c=0;c<cols;c++) grid[c] = new Array(rows).fill(null);
+        seq.forEach((o,i)=>{
+          const c = Math.floor(i/rows);
+          const r = i % rows;
+          if(!grid[c]) grid[c] = new Array(rows).fill(null);
+          grid[c][r] = o;
+        });
+        return grid; // grid[col][row]
+      }
+      function buildBigRoad(seq, rows=6){
+        const s = seq.filter(x => x!=='T'); // 忽略和
+        const grid = [];
+        let c=0, r=0;
+        let last=null;
+        function ensure(col){ if(!grid[col]) grid[col] = new Array(rows).fill(null); }
+        for(const o of s){
+          if(!last){
+            c=0; r=0; ensure(0); grid[c][r]=o; last=o; continue;
+          }
+          if(o===last){
+            if(r+1<rows && !grid[c]?.[r+1]){ r=r+1; ensure(c); grid[c][r]=o; }
+            else { c=c+1; ensure(c); let rr=r; while(rr>=0 && grid[c][rr]) rr--; if(rr<0) rr=0; r=rr; grid[c][r]=o; }
+          }else{
+            c=c+1; r=0; ensure(c); grid[c][r]=o; last=o;
+          }
+        }
+        return grid;
+      }
+      function renderGrid(container, grid){
+        const rows = 6;
+        const cols = grid.length || 1;
+        container.style.gridTemplateColumns = `repeat(${cols}, 24px)`;
+        container.innerHTML = '';
+        for(let r=0;r<rows;r++){
+          for(let c=0;c<cols;c++){
+            const o = (grid[c] && grid[c][r]) || null;
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if(o){
+              const d = document.createElement('div');
+              d.className = 'dot ' + o;
+              cell.appendChild(d);
+            }
+            container.appendChild(cell);
+          }
+        }
+      }
+      function renderRoads(){
+        const seq = seqFromRecords();
+        const bead = buildBead(seq);
+        const big  = buildBigRoad(seq);
+        renderGrid($.beadGrid, bead);
+        renderGrid($.bigGrid, big);
+      }
 
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button className="btn" onClick={()=>push(B)}>＋莊 (B)</button>
-        <button className="btn" onClick={()=>push(P)}>＋閒 (P)</button>
-        <button className="btn" onClick={()=>push(T)}>＋和 (T)</button>
-        <button className="btn" onClick={random}>隨機一手</button>
-        <button className="btn" onClick={undo}>復原</button>
-        <button className="btn" onClick={reset}>清空</button>
-        <div className="ml-3 text-sm text-slate-300">統計｜莊 {counts.B}、閒 {counts.P}、和 {counts.T}</div>
-      </div>
+      // --- 儲存/載入 & 渲染 ---
+      function load(){
+        try{
+          const raw = localStorage.getItem(LS_KEY);
+          const arr = raw ? JSON.parse(raw) : [];
+          if(Array.isArray(arr)) records = arr.map((r,i)=>({round:i+1, ...r}));
+        }catch(e){ records=[]; }
+      }
+      function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(records)); }catch(e){} }
 
-      {/* Boards */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="board">
-          <div className="title mb-2">珠盤路（由上到下、左至右）</div>
-          <Grid grid={bead} mode="bead" />
-        </div>
+      function renderStats(){
+        const total = records.length;
+        let p=0,b=0,t=0;
+        for(const r of records){ if(r.result==='閒') p++; else if(r.result==='莊') b++; else t++; }
+        $.statTotal.textContent = total;
+        $.statP.textContent = p; $.statB.textContent = b; $.statT.textContent = t;
+        function pct(n){ return total? '('+( (n/total*100).toFixed(1) )+'%)':'(0.0%)'; }
+        $.statPpct.textContent = pct(p);
+        $.statBpct.textContent = pct(b);
+        $.statTpct.textContent = pct(t);
+        $.undoBtn.disabled = total===0;
+        $.clearBtn.disabled = total===0;
+        $.csvBtn.disabled = total===0;
+        $.tsvBtn.disabled = total===0;
+        if(total>0){
+          const last = records[records.length-1];
+          $.nextHintWrap.style.display = 'grid';
+          $.nextHintBadgePD.innerHTML = 'PD ' + (last.pd.final==='不下注' ? badge('不下注') : badge(last.pd.final));
+          $.nextHintBadgeEV.innerHTML = 'EV ' + (last.ev.final==='不下注' ? badge('不下注') : badge(last.ev.final));
+          $.nextHintBadgeADV.innerHTML = 'ADV ' + (last.adv.final==='不下注' ? badge('不下注') : badge(last.adv.final));
+          $.nextHintConsensus.innerHTML = last.consensus.html;
+          const svPD = `PD: S=${last.pd.S>0?'+':''}${last.pd.S}，V=${last.pd.V}${(last.pd.V%2?'（奇）':'（偶）')}；基礎：${last.pd.base}${last.pd.flipped?' → 反轉':''}`;
+          const svEV = `EV: S=${last.ev.S>0?'+':''}${last.ev.S}`;
+          const svADV = `ADV: CP=${last.adv.cp>0?'+':''}${last.adv.cp}，AP閒=${last.adv.apP.toFixed(1)}，AP莊=${last.adv.apB.toFixed(1)}，閒優勢=${last.adv.advP>0?'+':''}${last.adv.advP.toFixed(1)}，莊優勢=${last.adv.advB>0?'+':''}${last.adv.advB.toFixed(1)}`;
+          $.nextHintText.textContent = svPD + ' ｜ ' + svEV + ' ｜ ' + svADV;
+        }else{
+          $.nextHintWrap.style.display = 'none';
+        }
+        renderAccuracy();
+      }
+      function renderTable(){
+        if(records.length===0){
+          $.tbody.innerHTML = '<tr><td colspan="16" class="muted" style="text-align:center;padding:18px">尚無紀錄，請在上方輸入牌後按「新增紀錄」。</td></tr>';
+          return;
+        }
+        $.tbody.innerHTML = records.map((r,idx)=>{
+          const pc = r.pCards.join(' '), bc = r.bCards.join(' ');
+          const pdsv = `S=${r.pd.S>0?'+':''}${r.pd.S} / V=${r.pd.V}${(r.pd.V%2?'(奇)':'(偶)')}`;
+          const evs = `S=${r.ev.S>0?'+':''}${r.ev.S}`;
+          const advs = `CP=${r.adv.cp>0?'+':''}${r.adv.cp} / AP閒=${r.adv.apP.toFixed(1)} / AP莊=${r.adv.apB.toFixed(1)} / 閒=${r.adv.advP>0?'+':''}${r.adv.advP.toFixed(1)} / 莊=${r.adv.advB>0?'+':''}${r.adv.advB.toFixed(1)}`;
+          return `<tr>
+            <td>${r.round}</td>
+            <td style="font-family:ui-monospace,Menlo,monospace">${pc}</td>
+            <td style="font-family:ui-monospace,Menlo,monospace">${bc}</td>
+            <td>${r.pTotal}</td>
+            <td>${r.bTotal}</td>
+            <td>${badge(r.result)}</td>
+            <td>${r.pairs.html}</td>
+            <td>${r.dragon.labelHtml}</td>
+            <td>${r.super6.labelHtml}</td>
+            <td>${pdsv}</td>
+            <td>${badge(r.pd.final)}</td>
+            <td>${evs}</td>
+            <td>${badge(r.ev.final)}</td>
+            <td>${advs}</td>
+            <td>${badge(r.adv.final)}</td>
+            <td>${r.consensus.html}</td>
+            <td>
+              <div class="row">
+                <button class="btn" data-act="edit" data-idx="${idx}">編輯</button>
+                <button class="btn" data-act="del" data-idx="${idx}">刪除</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+      }
+      function renderAccuracy(){
+        const rows = computeAccuracyRows(records);
+        function rate(r){ return r.considered ? ((r.hits/r.considered*100).toFixed(1)+'%') : '—'; }
+        const data = [
+          ['PD', rows.PD],
+          ['EV', rows.EV],
+          ['ADV', rows.ADV],
+          ['兩套一致', rows.MAJ2],
+          ['全一致', rows.ALL3],
+        ];
+        if(records.length<=1){
+          $.accTbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:18px">尚無資料。新增至少 2 局即可開始統計。</td></tr>';
+          return;
+        }
+        $.accTbody.innerHTML = data.map(([name,r])=>{
+          return `<tr>
+            <td>${name}</td>
+            <td>${r.signal}</td>
+            <td>${r.push}</td>
+            <td>${r.considered}</td>
+            <td>${r.hits}</td>
+            <td>${rate(r)}</td>
+            <td class="muted">${r.desc}</td>
+          </tr>`;
+        }).join('');
+      }
+      function refresh(){ renderStats(); renderTable(); renderRoads(); save(); }
 
-        <div className="board">
-          <div className="title mb-2">大路（左至右、上到下，同色同列）</div>
-          <Grid grid={bigGrid} mode="big" />
-        </div>
+      // 預覽/流程（以下與原版一致）
+      function currentPreview(){
+        const P1 = normalizeRank($.p1.value), P2 = normalizeRank($.p2.value);
+        const B1 = normalizeRank($.b1.value), B2 = normalizeRank($.b2.value);
+        const P3 = normalizeRank($.p3.value), B3 = normalizeRank($.b3.value);
 
-        <div className="board">
-          <div className="title mb-2">大眼仔路（依常見賭場規則延伸）</div>
-          <Grid grid={bigEyeGrid} mode="derived" />
-          <div className="text-xs text-slate-400 mt-2 leading-5">
-            規則要點：從第2欄起可計；<br/>
-            續落同列時，比較「左一欄」與「左{String(1+1)}欄」在同一列是否有子：一致=紅，不一致=藍。<br/>
-            換列（新欄）時，比較「左一欄」與「左{String(1+1)}欄」的欄高是否相等：相等=紅，不等=藍。
-          </div>
-        </div>
+        const first4 = [P1,P2,B1,B2];
+        let invalid = false;
+        for(const r of first4){
+          if(!r) { invalid = true; }
+          else { const v = strToVal(r); if(Number.isNaN(v)) invalid = true; }
+        }
+        inputs.forEach(el=> el.classList.remove('err'));
 
-        <div className="board">
-          <div className="title mb-2">小路（依常見賭場規則延伸）</div>
-          <Grid grid={smallGrid} mode="derived" />
-          <div className="text-xs text-slate-400 mt-2">從第3欄起可計；比較偏移為「左一 vs 左三」。</div>
-        </div>
+        if(invalid){
+          $.previewText.textContent = '請先輸入有效的 P1, P2, B1, B2（A,1–9,10,J,Q,K）。';
+          $.flowText.textContent = '流程提示：請依序輸入 P1, P2, B1, B2。';
+          $.p3Hint.textContent = ''; $.b3Hint.textContent = '';
+          return { ready:false };
+        }
 
-        <div className="board">
-          <div className="title mb-2">蟑螂路（依常見賭場規則延伸）</div>
-          <Grid grid={roachGrid} mode="derived" />
-          <div className="text-xs text-slate-400 mt-2">從第4欄起可計；比較偏移為「左一 vs 左四」。</div>
-        </div>
-      </div>
+        const p2Total = valSum10([P1,P2]);
+        const b2Total = valSum10([B1,B2]);
 
-      <div className="text-xs text-slate-500">
-        快捷鍵：<span className="kbd">B</span> 加莊、<span className="kbd">P</span> 加閒、<span className="kbd">T</span> 加和、
-        <span className="kbd">R</span> 隨機、<span className="kbd">U</span> 復原、<span className="kbd">C</span> 清空。
-      </div>
-    </div>
-  );
-}
+        if(p2Total>=8 || b2Total>=8){
+          $.p3Hint.textContent = ''; $.b3Hint.textContent = '';
+          const pTot = p2Total, bTot = b2Total;
+          const res = decideWinner(pTot,bTot);
+          const nat = true;
+          const pair = pairsInfo(P1,P2,B1,B2);
+          const dragon = dragonBonusInfo(nat, res, pTot, bTot);
+          const super6 = { ok:false, labelHtml:'<span class="muted">—</span>' };
+          const pd = pdFromCards([P1,P2,B1,B2]);
+          const ev = evFromCards([P1,P2,B1,B2]);
+          const adv = advFromRound([P1,P2],[B1,B2], pTot, bTot);
+          const cons = consensus3(pd.final, ev.final, adv.final);
+          $.previewText.innerHTML = `自然停牌：閒 ${pTot} vs 莊 ${bTot} → ${badge(res)}｜對子：${pair.html}｜龍寶：${dragon.labelHtml}｜超級6：${super6.labelHtml}｜PD：S=${pd.S>0?'+':''}${pd.S}、V=${pd.V}${(pd.V%2?'（奇）':'（偶）')} → ${badge(pd.final)}｜EV：S=${ev.S>0?'+':''}${ev.S} → ${badge(ev.final)}｜ADV：CP=${adv.cp>0?'+':''}${adv.cp}；AP閒=${adv.apP.toFixed(1)}，AP莊=${adv.apB.toFixed(1)}；閒優勢=${adv.advP>0?'+':''}${adv.advP.toFixed(1)}，莊優勢=${adv.advB>0?'+':''}${adv.advB.toFixed(1)} → ${badge(adv.final)}｜${cons.html}`;
+          $.flowText.innerHTML = '流程提示：<b>自然 8/9</b>，雙方不補牌。';
+          return { ready:true, needP3:false, needB3:false, pCards:[P1,P2], bCards:[B1,B2], pTotal:pTot, bTotal:bTot, result:res, pairs:pair, dragon, super6, pd, ev, adv, consensus:cons };
+        }
 
-function mount(){
-  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-  // Hotkeys
-  window.addEventListener('keydown', (e)=>{
-    const key = e.key.toLowerCase();
-    const btn = {
-      'b':()=>document.querySelectorAll('.btn')[0].click(),
-      'p':()=>document.querySelectorAll('.btn')[1].click(),
-      't':()=>document.querySelectorAll('.btn')[2].click(),
-      'r':()=>document.querySelectorAll('.btn')[3].click(),
-      'u':()=>document.querySelectorAll('.btn')[4].click(),
-      'c':()=>document.querySelectorAll('.btn')[5].click(),
-    }[key];
-    if(btn) { e.preventDefault(); btn(); }
-  });
-}
+        const pDraw = decidePlayerDraw(p2Total);
+        let needP3 = pDraw;
+        let p3val = null;
 
-mount();
-</script>
+        if(pDraw){
+          if(P3){
+            const v = strToVal(P3);
+            if(Number.isNaN(v)){ $.p3.classList.add('err'); $.previewText.textContent='閒需補第3張：請輸入有效的 P3（A,1–9,10,J,Q,K）。'; $.p3Hint.textContent='需補'; $.b3Hint.textContent='待閒補後判定'; $.flowText.textContent='流程提示：先輸入 P3。'; return {ready:false}; }
+            p3val = v;
+            $.p3Hint.innerHTML = '<span class="ok">需補 ✓</span>';
+          }else{
+            $.p3Hint.textContent = '需補';
+            $.b3Hint.textContent = '待閒補後判定';
+            $.previewText.textContent = '閒需補第3張，請先輸入 P3。';
+            $.flowText.textContent = '流程提示：先輸入 P3。';
+            return { ready:false };
+          }
+        }else{
+          $.p3Hint.textContent = '不補';
+        }
+
+        let needB3 = null;
+        if(pDraw){
+          needB3 = decideBankerDraw(b2Total, true, p3val);
+        }else{
+          needB3 = decideBankerDraw(b2Total, false, null);
+        }
+
+        if(needB3){
+          if(B3){
+            const vb3 = strToVal(B3);
+            if(Number.isNaN(vb3)){ $.b3.classList.add('err'); $.previewText.textContent='莊需補第3張：請輸入有效的 B3（A,1–9,10,J,Q/K）。'; $.b3Hint.textContent='需補'; $.flowText.textContent='流程提示：請輸入 B3。'; return {ready:false}; }
+            $.b3Hint.innerHTML = '<span class="ok">需補 ✓</span>';
+          }else{
+            $.b3Hint.textContent = '需補';
+            $.previewText.textContent = '莊需補第3張，請輸入 B3。';
+            $.flowText.textContent = '流程提示：請輸入 B3。';
+            return { ready:false };
+          }
+        }else{
+          $.b3Hint.textContent = '不補';
+        }
+
+        const pCards = pDraw ? [P1,P2,P3] : [P1,P2];
+        const bCards = needB3 ? [B1,B2,B3] : [B1,B2];
+        const all = [...pCards, ...bCards];
+        const pTot = valSum10(pCards);
+        const bTot = valSum10(bCards);
+        const res = decideWinner(pTot,bTot);
+        const nat = false;
+        const pair = pairsInfo(P1,P2,B1,B2);
+        const dragon = dragonBonusInfo(nat, res, pTot, bTot);
+        const super6 = super6Info(res, bTot, bCards.length);
+        const pd = pdFromCards(all);
+        const ev = evFromCards(all);
+        const adv = advFromRound(pCards, bCards, pTot, bTot);
+        const cons = consensus3(pd.final, ev.final, adv.final);
+
+        $.previewText.innerHTML = `閒 ${pCards.join(' ')} → <b>${pTot}</b>；莊 ${bCards.join(' ')} → <b>${bTot}</b> → ${badge(res)}｜對子：${pair.html}｜龍寶：${dragon.labelHtml}｜超級6：${super6.labelHtml}｜PD：S=${pd.S>0?'+':''}${pd.S}、V=${pd.V}${(pd.V%2?'（奇）':'（偶）')} → ${badge(pd.final)}｜EV：S=${ev.S>0?'+':''}${ev.S} → ${badge(ev.final)}｜ADV：CP=${adv.cp>0?'+':''}${adv.cp}；AP閒=${adv.apP.toFixed(1)}，AP莊=${adv.apB.toFixed(1)}；閒優勢=${adv.advP>0?'+':''}${adv.advP.toFixed(1)}，莊優勢=${adv.advB>0?'+':''}${adv.advB.toFixed(1)} → ${badge(adv.final)}｜${cons.html}`;
+        $.flowText.innerHTML = '流程提示：閒'+(pDraw?'補3 ':'不補')+'；莊'+(needB3?'補3':'不補')+'。';
+
+        return { ready:true, needP3, needB3, pCards, bCards, pTotal:pTot, bTotal:bTot, result:res, pairs:pair, dragon, super6, pd, ev, adv, consensus:cons };
+      }
+
+      function setEditMode(idx){
+        editIndex = idx;
+        if(idx===null){
+          $.addBtn.textContent = '新增紀錄';
+          $.cancelEditBtn.style.display = 'none';
+          resetInputs();
+          $.p1.focus(); lastFocused = $.p1;
+          return;
+        }
+        const r = records[idx];
+        $.p1.value = r.pCards[0]||''; $.p2.value = r.pCards[1]||''; $.p3.value = r.pCards[2]||'';
+        $.b1.value = r.bCards[0]||''; $.b2.value = r.bCards[1]||''; $.b3.value = r.bCards[2]||'';
+        $.addBtn.textContent = '更新紀錄';
+        $.cancelEditBtn.style.display = 'inline-block';
+        $.p1.focus(); lastFocused = $.p1;
+        updatePreview();
+      }
+
+      function resetInputs(){
+        $.p1.value=''; $.p2.value=''; $.p3.value=''; $.b1.value=''; $.b2.value=''; $.b3.value='';
+        $.p3Hint.textContent=''; $.b3Hint.textContent='';
+        $.previewText.textContent='尚未足夠計算。';
+        $.flowText.textContent='流程提示：請依序輸入 P1, P2, B1, B2。';
+        inputs.forEach(el=> el.classList.remove('err'));
+      }
+
+      function updatePreview(){ currentPreview(); }
+
+      // Add / Update
+      $.addBtn.addEventListener('click', ()=>{
+        const pv = currentPreview();
+        if(!pv.ready){ return; }
+        const rec = { pCards: pv.pCards.map(normalizeRank), bCards: pv.bCards.map(normalizeRank), pTotal: pv.pTotal, bTotal: pv.bTotal, result: pv.result, pairs: pv.pairs, dragon: pv.dragon, super6: pv.super6, pd: pv.pd, ev: pv.ev, adv: pv.adv, consensus: pv.consensus };
+        if(editIndex!==null){
+          records[editIndex] = { round: records[editIndex].round, ...rec };
+          setEditMode(null);
+        }else{
+          records.push({ round: records.length+1, ...rec });
+        }
+        refresh(); resetInputs(); $.p1.focus(); lastFocused = $.p1;
+      });
+
+      $.resetBtn.addEventListener('click', ()=>{ resetInputs(); $.p1.focus(); lastFocused = $.p1; });
+      $.cancelEditBtn.addEventListener('click', ()=> setEditMode(null));
+
+      // Undo / Clear / Export
+      $.undoBtn.addEventListener('click', ()=>{ records.pop(); refresh(); });
+      $.clearBtn.addEventListener('click', ()=>{
+        if(confirm('確定要清空所有紀錄？此動作無法復原。')){ records=[]; setEditMode(null); refresh(); }
+      });
+      $.csvBtn.addEventListener('click', exportCSV_UTF8);
+      $.tsvBtn.addEventListener('click', exportTSV_UTF16LE);
+
+      // Quick keypad
+      document.querySelectorAll('.pill.k').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const val = el.textContent.trim();
+          const fields = [$.p1,$.p2,$.b1,$.b2,$.p3,$.b3];
+          let idx = fields.indexOf(lastFocused);
+          if(idx===-1){ lastFocused=$.p1; idx=0; }
+          fields[idx].value = val;
+          updatePreview();
+          const pv = currentPreview();
+          const order = [$.p1,$.p2,$.b1,$.b2,$.p3,$.b3];
+          function need(field){
+            if(field===$.p3) return pv.needP3===true;
+            if(field===$.b3) return pv.needB3===true;
+            return true;
+          }
+          let nextIdx = idx;
+          for(let i=0;i<order.length;i++){
+            nextIdx = (nextIdx+1) % order.length;
+            if(need(order[nextIdx])) break;
+          }
+          order[nextIdx].focus();
+          lastFocused = order[nextIdx];
+        });
+      });
+
+      // Input events
+      inputs.forEach(el=>{
+        el.addEventListener('focus', ()=>{ lastFocused = el; });
+        el.addEventListener('input', ()=>{ el.value = normalizeRank(el.value); updatePreview(); });
+        el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ $.addBtn.click(); } });
+      });
+
+      // Delegated table actions
+      $.tbody.addEventListener('click', (e)=>{
+        const t = e.target;
+        if(!(t instanceof HTMLElement)) return;
+        const act = t.getAttribute('data-act');
+        const idx = +t.getAttribute('data-idx');
+        if(act==='edit'){ setEditMode(idx); }
+        if(act==='del'){
+          records.splice(idx,1);
+          records = records.map((r,i)=>({ ...r, round:i+1 }));
+          if(editIndex!==null && idx===editIndex) setEditMode(null);
+          refresh();
+        }
+      });
+
+      // init
+      function init(){
+        load(); renderStats(); renderTable(); renderRoads(); updatePreview();
+      }
+      init();
+    })();
+  </script>
 </body>
 </html>
