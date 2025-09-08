@@ -1,10 +1,9 @@
-已使用 84% 的儲存空間 … 儲存空間耗盡後，你就無法建立、編輯及上傳檔案。
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>百家樂紀錄表 v8.1（命中率｜UTF-8/UTF-16 匯出｜含珠盤路/大路）</title>
+  <title>百家樂紀錄表 v8.1（命中率｜UTF-8/UTF-16 匯出）</title>
   <style>
     :root{
       --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
@@ -52,21 +51,10 @@
     .flow{font-size:12px;color:#cbd5e1}
     .flow b{color:#fff}
     .tag{display:inline-block;margin-right:6px;margin-top:4px}
+
     .nexthint{display:grid;grid-template-columns:auto auto auto auto 1fr;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);margin-top:4px}
     .nexthint .label{color:#94a3b8;font-size:12px}
     .nexthint .sp{color:#94a3b8}
-
-    /* 路單格 */
-    .roadWrap{display:grid;gap:12px}
-    @media(min-width:900px){.roadWrap{grid-template-columns:1fr 1fr}}
-    .roadCard{background:rgba(17,24,39,.7);border:1px solid #1f2937;border-radius:16px;padding:12px}
-    .roadTitle{font-size:14px;font-weight:600;margin-bottom:8px}
-    .roadGrid{display:inline-grid;border:1px solid #1f2937;background:#0b1220}
-    .cell{width:24px;height:24px;border-right:1px solid #1f2937;border-bottom:1px solid #1f2937;display:flex;align-items:center;justify-content:center}
-    .dot{width:16px;height:16px;border-radius:999px;box-shadow:0 0 0 2px rgba(255,255,255,.08) inset}
-    .P{background:#2563eb}
-    .B{background:#dc2626}
-    .T{background:#059669}
   </style>
 </head>
 <body>
@@ -74,7 +62,7 @@
     <header class="row" style="align-items:flex-end;justify-content:space-between;gap:12px">
       <div>
         <h1>百家樂紀錄表 v8.1</h1>
-        <div class="sub">策略：<b>PD</b>、<b>EV</b>、<b>ADV(分邊優勢)</b>；命中率面板（PD/EV/ADV/兩套一致/全一致）。<br>新增：<b>CSV(UTF‑8)</b> 與 <b>TSV(UTF‑16LE，Excel免亂碼)</b> 匯出。｜本版加上：<b>珠盤路</b>、<b>大路</b> 視覺化。</div>
+        <div class="sub">策略：<b>PD</b>、<b>EV</b>、<b>ADV(分邊優勢)</b>；命中率面板（PD/EV/ADV/兩套一致/全一致）。<br>新增：<b>CSV(UTF‑8)</b> 與 <b>TSV(UTF‑16LE，Excel免亂碼)</b> 匯出。</div>
       </div>
       <div class="row">
         <button id="undoBtn" class="btn">撤銷上一局</button>
@@ -173,18 +161,6 @@
       </div>
     </section>
 
-    <!-- 新增：路單區塊 -->
-    <section class="roadWrap" style="margin-top:10px">
-      <div class="roadCard">
-        <div class="roadTitle">珠盤路</div>
-        <div id="beadGrid" class="roadGrid"></div>
-      </div>
-      <div class="roadCard">
-        <div class="roadTitle">大路（忽略和）</div>
-        <div id="bigGrid" class="roadGrid"></div>
-      </div>
-    </section>
-
     <section class="card" style="margin-top:10px">
       <h3 style="margin:0 0 8px">策略命中率</h3>
       <div class="muted" style="font-size:12px;margin-bottom:8px">
@@ -258,7 +234,7 @@
       let editIndex = null;
 
       const ids = (arr) => arr.reduce((o,id)=> (o[id]=document.getElementById(id), o), {});
-      const $ = ids(['p1','p2','p3','b1','b2','b3','addBtn','resetBtn','cancelEditBtn','undoBtn','clearBtn','csvBtn','tsvBtn','tbody','statTotal','statP','statB','statT','statPpct','statBpct','statTpct','previewText','p3Hint','b3Hint','flowText','nextHintWrap','nextHintBadgePD','nextHintBadgeEV','nextHintBadgeADV','nextHintConsensus','nextHintText','accTbody','beadGrid','bigGrid']);
+      const $ = ids(['p1','p2','p3','b1','b2','b3','addBtn','resetBtn','cancelEditBtn','undoBtn','clearBtn','csvBtn','tsvBtn','tbody','statTotal','statP','statB','statT','statPpct','statBpct','statTpct','previewText','p3Hint','b3Hint','flowText','nextHintWrap','nextHintBadgePD','nextHintBadgeEV','nextHintBadgeADV','nextHintConsensus','nextHintText','accTbody']);
       const inputs = [$.p1,$.p2,$.b1,$.b2,$.p3,$.b3];
       let lastFocused = $.p1;
 
@@ -306,15 +282,15 @@
         return '和';
       }
       function badge(kind){ 
-        if(kind==='閒') return '<span class="badge blue">閒</span>';
-        if(kind==='莊') return '<span class="badge red">莊</span>';
-        if(kind==='和') return '<span class="badge green">和</span>';
-        if(kind.startsWith('全一致')) return '<span class="badge green">'+kind+'</span>';
-        if(kind.startsWith('兩套一致')) return '<span class="badge green">'+kind+'</span>';
-        if(kind==='一致(不下注)') return '<span class="badge gray">一致(不下注)</span>';
-        if(kind==='不下注') return '<span class="badge gray">不下注</span>';
-        if(kind==='分歧') return '<span class="badge amber">分歧</span>';
-        return '<span class="badge gray">—</span>';
+        if(kind==='閒') return '<span class=\"badge blue\">閒</span>';
+        if(kind==='莊') return '<span class=\"badge red\">莊</span>';
+        if(kind==='和') return '<span class=\"badge green\">和</span>';
+        if(kind.startsWith('全一致')) return '<span class=\"badge green\">'+kind+'</span>';
+        if(kind.startsWith('兩套一致')) return '<span class=\"badge green\">'+kind+'</span>';
+        if(kind==='分歧') return '<span class=\"badge amber\">分歧</span>';
+        if(kind==='一致(不下注)') return '<span class=\"badge gray\">一致(不下注)</span>';
+        if(kind==='不下注') return '<span class=\"badge gray\">不下注</span>';
+        return '<span class=\"badge gray\">—</span>';
       }
 
       // 對子、龍寶、超級6
@@ -324,32 +300,32 @@
         const bPair = isPair(B1,B2);
         const anyPair = pPair || bPair;
         const tags = [];
-        if(pPair) tags.push('<span class="badge blue tag">閒對</span>');
-        if(bPair) tags.push('<span class="badge red tag">莊對</span>');
-        if(anyPair) tags.push('<span class="badge amber tag">任意對</span>');
-        return { pPair, bPair, anyPair, html: tags.join('') || '<span class="muted">—</span>' };
+        if(pPair) tags.push('<span class=\"badge blue tag\">閒對</span>');
+        if(bPair) tags.push('<span class=\"badge red tag\">莊對</span>');
+        if(anyPair) tags.push('<span class=\"badge amber tag\">任意對</span>');
+        return { pPair, bPair, anyPair, html: tags.join('') || '<span class=\"muted\">—</span>' };
       }
       function dragonBonusInfo(natural, winner, pTot, bTot){
         if(winner==='和'){
-          if(natural) return { side:null, diff:0, outcome:'push', labelHtml:'<span class="muted">例牌和：退本金</span>' };
-          return { side:null, diff:0, outcome:'lose', labelHtml:'<span class="muted">非例牌和：龍寶輸</span>' };
+          if(natural) return { side:null, diff:0, outcome:'push', labelHtml:'<span class=\"muted\">例牌和：退本金</span>' };
+          return { side:null, diff:0, outcome:'lose', labelHtml:'<span class=\"muted\">非例牌和：龍寶輸</span>' };
         }
         const side = winner;
         if(natural){
-          return { side, diff:null, outcome:'win-1:1', labelHtml:`<span class="badge green">${side}龍寶 1:1（例牌勝）</span>` };
+          return { side, diff:null, outcome:'win-1:1', labelHtml:`<span class=\"badge green\">${side}龍寶 1:1（例牌勝）</span>` };
         }
         const diff = Math.abs(pTot - bTot);
         const payMap = {4:'1:1',5:'1:2',6:'1:3',7:'1:5',8:'1:10',9:'1:30'};
         if(diff>=4 && diff<=9){
-          return { side, diff, outcome:`win-${payMap[diff]}`, labelHtml:`<span class="badge green">${side}龍寶 差${diff} → ${payMap[diff]}</span>` };
+          return { side, diff, outcome:`win-${payMap[diff]}`, labelHtml:`<span class=\"badge green\">${side}龍寶 差${diff} → ${payMap[diff]}</span>` };
         }
-        return { side, diff, outcome:'lose', labelHtml:'<span class="muted">差距 < 4：龍寶不賠</span>' };
+        return { side, diff, outcome:'lose', labelHtml:'<span class=\"muted\">差距 < 4：龍寶不賠</span>' };
       }
       function super6Info(winner, bTotal, bCardsLen){
-        if(winner!=='莊' || bTotal!==6) return { ok:false, labelHtml:'<span class="muted">—</span>' };
+        if(winner!=='莊' || bTotal!==6) return { ok:false, labelHtml:'<span class=\"muted\">—</span>' };
         const pay = (bCardsLen===2) ? '1:12' : '1:20';
         const note = (bCardsLen===2) ? '（2張）' : '（3張）';
-        return { ok:true, pay, labelHtml:`<span class="badge violet">超級6 ${pay} ${note}</span>` };
+        return { ok:true, pay, labelHtml:`<span class=\"badge violet\">超級6 ${pay} ${note}</span>` };
       }
 
       // --- PD 公式 ---
@@ -364,7 +340,7 @@
         if(rank==='6') return -2;
         if(rank==='8') return -2;
         if(rank==='9') return -3;
-        if(rank==='10' || rank==='J' || rank==='Q' || rank==='K') return 0;
+        if(rank==='10' || rank==='J' || rank==='Q' || rank==='K') return 0; // 變數值 PD=0
         return 0;
       }
       function isVariable(rank){
@@ -443,21 +419,21 @@
       function consensus3(pdFinal, evFinal, advFinal){
         const votes = [pdFinal, evFinal, advFinal].filter(v => v==='閒' || v==='莊');
         const skip = [pdFinal, evFinal, advFinal].every(v=> v==='不下注');
-        if(skip) return { label:'一致(不下注)', html:'<span class="badge gray">一致(不下注)</span>' };
+        if(skip) return { label:'一致(不下注)', html:'<span class=\"badge gray\">一致(不下注)</span>' };
         const count = { '閒':0, '莊':0 };
         for(const v of votes){ count[v]++; }
         if(count['閒']===3 || count['莊']===3){
           const side = count['閒']===3 ? '閒' : '莊';
-          return { label:'全一致('+side+')', html:'<span class="badge green">全一致('+side+')</span>' };
+          return { label:'全一致('+side+')', html:'<span class=\"badge green\">全一致('+side+')</span>' };
         }
         if(count['閒']>=2 || count['莊']>=2){
           const side = count['閒']>=2 ? '閒' : '莊';
-          return { label:'兩套一致('+side+')', html:'<span class="badge green">兩套一致('+side+')</span>' };
+          return { label:'兩套一致('+side+')', html:'<span class=\"badge green\">兩套一致('+side+')</span>' };
         }
-        return { label:'分歧', html:'<span class="badge amber">分歧</span>' };
+        return { label:'分歧', html:'<span class=\"badge amber\">分歧</span>' };
       }
 
-      // 命中率計算
+      // 命中率計算：i 局建議 vs i+1 局結果；下一局和→push，不列入命中率
       function computeAccuracyRows(recs){
         const rows = {
           PD:{signal:0,push:0,considered:0,hits:0,desc:'PD 單策略'},
@@ -531,18 +507,20 @@
       }
       function exportCSV_UTF8(){
         const rows = rowsForExport();
+        // 轉 CSV：逗號分隔，必要時加引號，Windows 友好換行 CRLF；前置 UTF‑8 BOM
         const lines = rows.map(r => r.map(cell => {
           let s = String(cell).replace(/\"/g,'\"\"');
           if(/[,\"\r\n]/.test(s)) s = '\"'+s+'\"';
           return s;
-        }).join(',')).join('\\r\\n');
-        const content = '\\ufeff' + lines;
+        }).join(',')).join('\r\n');
+        const content = '\ufeff' + lines;
         const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
         saveBlob(blob, 'baccarat_records_v8_1_utf8.csv');
       }
       function exportTSV_UTF16LE(){
         const rows = rowsForExport();
-        const tsv = rows.map(r => r.map(cell => String(cell).replace(/\\t/g,' ').replace(/\\r?\\n/g,' ')).join('\\t')).join('\\r\\n');
+        const tsv = rows.map(r => r.map(cell => String(cell).replace(/\t/g,' ').replace(/\r?\n/g,' ')).join('\t')).join('\r\n');
+        // 手動組 UTF‑16LE：BOM FF FE + 每字元兩位元組（低位在前）
         const buf = new Uint8Array(2 + tsv.length*2);
         buf[0]=0xFF; buf[1]=0xFE;
         for(let i=0;i<tsv.length;i++){
@@ -554,70 +532,7 @@
         saveBlob(blob, 'baccarat_records_v8_1_excel_tsv_utf16le.tsv');
       }
 
-      // --- 路單建置 ---
-      function seqFromRecords(){
-        // 轉成 P/B/T 序列（閒= P；莊= B；和= T）
-        return records.map(r => r.result==='閒' ? 'P' : r.result==='莊' ? 'B' : 'T');
-      }
-      function buildBead(seq, rows=6){
-        const grid = [];
-        const cols = Math.ceil(seq.length / rows);
-        for(let c=0;c<cols;c++) grid[c] = new Array(rows).fill(null);
-        seq.forEach((o,i)=>{
-          const c = Math.floor(i/rows);
-          const r = i % rows;
-          if(!grid[c]) grid[c] = new Array(rows).fill(null);
-          grid[c][r] = o;
-        });
-        return grid; // grid[col][row]
-      }
-      function buildBigRoad(seq, rows=6){
-        const s = seq.filter(x => x!=='T'); // 忽略和
-        const grid = [];
-        let c=0, r=0;
-        let last=null;
-        function ensure(col){ if(!grid[col]) grid[col] = new Array(rows).fill(null); }
-        for(const o of s){
-          if(!last){
-            c=0; r=0; ensure(0); grid[c][r]=o; last=o; continue;
-          }
-          if(o===last){
-            if(r+1<rows && !grid[c]?.[r+1]){ r=r+1; ensure(c); grid[c][r]=o; }
-            else { c=c+1; ensure(c); let rr=r; while(rr>=0 && grid[c][rr]) rr--; if(rr<0) rr=0; r=rr; grid[c][r]=o; }
-          }else{
-            c=c+1; r=0; ensure(c); grid[c][r]=o; last=o;
-          }
-        }
-        return grid;
-      }
-      function renderGrid(container, grid){
-        const rows = 6;
-        const cols = grid.length || 1;
-        container.style.gridTemplateColumns = `repeat(${cols}, 24px)`;
-        container.innerHTML = '';
-        for(let r=0;r<rows;r++){
-          for(let c=0;c<cols;c++){
-            const o = (grid[c] && grid[c][r]) || null;
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            if(o){
-              const d = document.createElement('div');
-              d.className = 'dot ' + o;
-              cell.appendChild(d);
-            }
-            container.appendChild(cell);
-          }
-        }
-      }
-      function renderRoads(){
-        const seq = seqFromRecords();
-        const bead = buildBead(seq);
-        const big  = buildBigRoad(seq);
-        renderGrid($.beadGrid, bead);
-        renderGrid($.bigGrid, big);
-      }
-
-      // --- 儲存/載入 & 渲染 ---
+      // --- 事件 ---
       function load(){
         try{
           const raw = localStorage.getItem(LS_KEY);
@@ -659,7 +574,7 @@
       }
       function renderTable(){
         if(records.length===0){
-          $.tbody.innerHTML = '<tr><td colspan="16" class="muted" style="text-align:center;padding:18px">尚無紀錄，請在上方輸入牌後按「新增紀錄」。</td></tr>';
+          $.tbody.innerHTML = '<tr><td colspan=\"16\" class=\"muted\" style=\"text-align:center;padding:18px\">尚無紀錄，請在上方輸入牌後按「新增紀錄」。</td></tr>';
           return;
         }
         $.tbody.innerHTML = records.map((r,idx)=>{
@@ -669,8 +584,8 @@
           const advs = `CP=${r.adv.cp>0?'+':''}${r.adv.cp} / AP閒=${r.adv.apP.toFixed(1)} / AP莊=${r.adv.apB.toFixed(1)} / 閒=${r.adv.advP>0?'+':''}${r.adv.advP.toFixed(1)} / 莊=${r.adv.advB>0?'+':''}${r.adv.advB.toFixed(1)}`;
           return `<tr>
             <td>${r.round}</td>
-            <td style="font-family:ui-monospace,Menlo,monospace">${pc}</td>
-            <td style="font-family:ui-monospace,Menlo,monospace">${bc}</td>
+            <td style=\"font-family:ui-monospace,Menlo,monospace\">${pc}</td>
+            <td style=\"font-family:ui-monospace,Menlo,monospace\">${bc}</td>
             <td>${r.pTotal}</td>
             <td>${r.bTotal}</td>
             <td>${badge(r.result)}</td>
@@ -685,9 +600,9 @@
             <td>${badge(r.adv.final)}</td>
             <td>${r.consensus.html}</td>
             <td>
-              <div class="row">
-                <button class="btn" data-act="edit" data-idx="${idx}">編輯</button>
-                <button class="btn" data-act="del" data-idx="${idx}">刪除</button>
+              <div class=\"row\">
+                <button class=\"btn\" data-act=\"edit\" data-idx=\"${idx}\">編輯</button>
+                <button class=\"btn\" data-act=\"del\" data-idx=\"${idx}\">刪除</button>
               </div>
             </td>
           </tr>`;
@@ -719,9 +634,9 @@
           </tr>`;
         }).join('');
       }
-      function refresh(){ renderStats(); renderTable(); renderRoads(); save(); }
+      function refresh(){ renderStats(); renderTable(); save(); }
 
-      // 預覽/流程（以下與原版一致）
+      // 預覽/流程
       function currentPreview(){
         const P1 = normalizeRank($.p1.value), P2 = normalizeRank($.p2.value);
         const B1 = normalizeRank($.b1.value), B2 = normalizeRank($.b2.value);
@@ -745,6 +660,7 @@
         const p2Total = valSum10([P1,P2]);
         const b2Total = valSum10([B1,B2]);
 
+        // 自然
         if(p2Total>=8 || b2Total>=8){
           $.p3Hint.textContent = ''; $.b3Hint.textContent = '';
           const pTot = p2Total, bTot = b2Total;
@@ -752,7 +668,7 @@
           const nat = true;
           const pair = pairsInfo(P1,P2,B1,B2);
           const dragon = dragonBonusInfo(nat, res, pTot, bTot);
-          const super6 = { ok:false, labelHtml:'<span class="muted">—</span>' };
+          const super6 = { ok:false, labelHtml:'<span class=\"muted\">—</span>' };
           const pd = pdFromCards([P1,P2,B1,B2]);
           const ev = evFromCards([P1,P2,B1,B2]);
           const adv = advFromRound([P1,P2],[B1,B2], pTot, bTot);
@@ -762,6 +678,7 @@
           return { ready:true, needP3:false, needB3:false, pCards:[P1,P2], bCards:[B1,B2], pTotal:pTot, bTotal:bTot, result:res, pairs:pair, dragon, super6, pd, ev, adv, consensus:cons };
         }
 
+        // 判閒是否補
         const pDraw = decidePlayerDraw(p2Total);
         let needP3 = pDraw;
         let p3val = null;
@@ -771,7 +688,7 @@
             const v = strToVal(P3);
             if(Number.isNaN(v)){ $.p3.classList.add('err'); $.previewText.textContent='閒需補第3張：請輸入有效的 P3（A,1–9,10,J,Q,K）。'; $.p3Hint.textContent='需補'; $.b3Hint.textContent='待閒補後判定'; $.flowText.textContent='流程提示：先輸入 P3。'; return {ready:false}; }
             p3val = v;
-            $.p3Hint.innerHTML = '<span class="ok">需補 ✓</span>';
+            $.p3Hint.innerHTML = '<span class=\"ok\">需補 ✓</span>';
           }else{
             $.p3Hint.textContent = '需補';
             $.b3Hint.textContent = '待閒補後判定';
@@ -783,6 +700,7 @@
           $.p3Hint.textContent = '不補';
         }
 
+        // 判莊是否補
         let needB3 = null;
         if(pDraw){
           needB3 = decideBankerDraw(b2Total, true, p3val);
@@ -794,7 +712,7 @@
           if(B3){
             const vb3 = strToVal(B3);
             if(Number.isNaN(vb3)){ $.b3.classList.add('err'); $.previewText.textContent='莊需補第3張：請輸入有效的 B3（A,1–9,10,J,Q/K）。'; $.b3Hint.textContent='需補'; $.flowText.textContent='流程提示：請輸入 B3。'; return {ready:false}; }
-            $.b3Hint.innerHTML = '<span class="ok">需補 ✓</span>';
+            $.b3Hint.innerHTML = '<span class=\"ok\">需補 ✓</span>';
           }else{
             $.b3Hint.textContent = '需補';
             $.previewText.textContent = '莊需補第3張，請輸入 B3。';
@@ -805,6 +723,7 @@
           $.b3Hint.textContent = '不補';
         }
 
+        // 計算最終點 & 衍生標記
         const pCards = pDraw ? [P1,P2,P3] : [P1,P2];
         const bCards = needB3 ? [B1,B2,B3] : [B1,B2];
         const all = [...pCards, ...bCards];
@@ -879,7 +798,7 @@
       $.csvBtn.addEventListener('click', exportCSV_UTF8);
       $.tsvBtn.addEventListener('click', exportTSV_UTF16LE);
 
-      // Quick keypad
+      // Quick keypad（使用 lastFocused 決定填入目標）
       document.querySelectorAll('.pill.k').forEach(el=>{
         el.addEventListener('click', ()=>{
           const val = el.textContent.trim();
@@ -905,7 +824,7 @@
         });
       });
 
-      // Input events
+      // Input events（記錄最近聚焦欄位）
       inputs.forEach(el=>{
         el.addEventListener('focus', ()=>{ lastFocused = el; });
         el.addEventListener('input', ()=>{ el.value = normalizeRank(el.value); updatePreview(); });
@@ -928,10 +847,7 @@
       });
 
       // init
-      function init(){
-        load(); renderStats(); renderTable(); renderRoads(); updatePreview();
-      }
-      init();
+      load(); renderStats(); renderTable(); updatePreview();
     })();
   </script>
 </body>
